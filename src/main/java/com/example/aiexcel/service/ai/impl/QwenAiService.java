@@ -17,6 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.logging.Logger;
 
 @Service
@@ -30,6 +32,19 @@ public class QwenAiService implements AiService {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final CloseableHttpClient httpClient = HttpClients.createDefault();
+
+    private String maskKey(String key) {
+        if (key == null) return "<null>";
+        String trimmed = key.trim();
+        if (trimmed.length() <= 10) return "***";
+        return trimmed.substring(0, Math.min(6, trimmed.length())) + "***" + trimmed.substring(Math.max(trimmed.length() - 4, 0));
+    }
+
+    private void logExceptionWithTrace(Exception e, String context) {
+        StringWriter sw = new StringWriter();
+        e.printStackTrace(new PrintWriter(sw));
+        logger.severe(context + ": " + e.getMessage() + "\n" + sw.toString());
+    }
 
     public QwenAiService(@Value("${qwen.api.api-key:}") String apiKeyFromConfig,
                          @Value("${qwen.api.base-url:https://dashscope.aliyuncs.com/compatible-mode/v1}") String baseUrl,
@@ -53,7 +68,28 @@ public class QwenAiService implements AiService {
         }
 
         this.apiKey = resolvedKey;
-        this.apiBaseUrl = baseUrl;
+        // 确保 baseUrl 有效（防止被错误覆盖为空或被截断导致 HttpClient 报错 "Target host is not specified"）
+        String resolvedBase = baseUrl != null ? baseUrl.trim() : null;
+
+        // 尝试从 System properties 或环境变量回退（如果传入的 baseUrl 看起来不完整）
+        if (resolvedBase == null || resolvedBase.isEmpty()) {
+            resolvedBase = System.getProperty("qwen.api.base-url");
+            if (resolvedBase == null || resolvedBase.isEmpty()) {
+                resolvedBase = System.getenv("QWEN_API_BASE_URL");
+            }
+        }
+
+        // 简单校验 URL 是否看起来像一个完整的主机地址（protocol://host...）
+        boolean validBase = resolvedBase != null && resolvedBase.matches("^https?://[^/\\s]+.*$");
+        if (!validBase) {
+            String received = resolvedBase == null ? "<null>" : resolvedBase;
+            logger.warning("qwen.api.base-url appears invalid: '" + received + "'. Falling back to default base URL.");
+            this.apiBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        } else {
+            this.apiBaseUrl = resolvedBase;
+        }
+
+        logger.info("qwen.api.base-url resolved to: " + this.apiBaseUrl);
         this.defaultModel = model;
     }
 
@@ -81,6 +117,15 @@ public class QwenAiService implements AiService {
 
             String requestBody = objectMapper.writeValueAsString(qwenRequest);
 
+            // 日志：记录请求目标和模型（不记录完整 API Key）
+            try {
+                logger.info("Qwen request -> url=" + apiBaseUrl + "/chat/completions" + ", model=" + qwenRequest.getModel() + ", apiKeyPresent=" + (apiKey != null && !apiKey.isEmpty()));
+                logger.info("Qwen API key (masked): " + maskKey(apiKey));
+                logger.fine("Qwen request body: " + requestBody);
+            } catch (Exception ignore) {
+                // 日志尽力而为，不能让日志抛出异常影响主流程
+            }
+
             // 创建HTTP请求
             HttpPost httpPost = new HttpPost(apiBaseUrl + "/chat/completions");
             httpPost.setHeader("Authorization", "Bearer " + apiKey);
@@ -89,20 +134,23 @@ public class QwenAiService implements AiService {
             StringEntity entity = new StringEntity(requestBody, ContentType.APPLICATION_JSON);
             httpPost.setEntity(entity);
 
-            // 发送请求，使用 ResponseHandler 替代已弃用的 execute(ClassicHttpRequest)
+            // 发送请求，使用 ResponseHandler
             String responseString = httpClient.execute(httpPost, httpResponse -> {
                 HttpEntity responseEntity = httpResponse.getEntity();
                 String body;
                 try {
                     body = responseEntity != null ? EntityUtils.toString(responseEntity) : "";
                 } catch (org.apache.hc.core5.http.ParseException e) {
-                    logger.severe("Error parsing HTTP response: " + e.getMessage());
+                    logExceptionWithTrace(e, "Error parsing HTTP response");
                     throw new RuntimeException("Error parsing HTTP response", e);
                 }
 
                 int status = httpResponse.getCode();
                 if (status != 200) {
-                    logger.severe("API request failed with status: " + status + ", response: " + body);
+                    // 更丰富的错误日志
+                    logger.severe("API request failed -> url=" + apiBaseUrl + "/chat/completions" + ", status=" + status + ", model=" + qwenRequest.getModel());
+                    logger.severe("Response body: " + body);
+                    logger.severe("API key (masked): " + maskKey(apiKey));
                     throw new RuntimeException("API request failed with status: " + status + ", response: " + body);
                 }
 
@@ -116,8 +164,10 @@ public class QwenAiService implements AiService {
             } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
                 logger.severe("Error parsing AI response: " + e.getMessage());
                 logger.severe("Response content: " + responseString);
+                logExceptionWithTrace(e, "Error parsing AI response");
                 throw new RuntimeException("Error parsing AI response", e);
             }
+
             return aiResponse;
         } catch (IOException e) {
             logger.severe("Error calling Qwen API: " + e.getMessage());
