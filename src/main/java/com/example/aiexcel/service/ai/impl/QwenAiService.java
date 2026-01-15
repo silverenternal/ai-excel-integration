@@ -4,9 +4,10 @@ import com.example.aiexcel.dto.AiRequest;
 import com.example.aiexcel.dto.AiResponse;
 import com.example.aiexcel.service.ai.AiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
@@ -34,7 +35,24 @@ public class QwenAiService implements AiService {
                          @Value("${qwen.api.base-url:https://dashscope.aliyuncs.com/compatible-mode/v1}") String baseUrl,
                          @Value("${qwen.api.default-model:qwen-max}") String model) {
         // 仅使用从配置属性获取的API Key，系统会自动从.env文件加载
-        this.apiKey = apiKeyFromConfig;
+        String resolvedKey = apiKeyFromConfig;
+        if (resolvedKey == null || resolvedKey.isEmpty()) {
+            // 回退到 System properties
+            resolvedKey = System.getProperty("qwen.api.api-key");
+            if (resolvedKey != null && !resolvedKey.isEmpty()) {
+                logger.info("Qwen API key resolved from System properties");
+            }
+        }
+
+        if (resolvedKey == null || resolvedKey.isEmpty()) {
+            // 回退到环境变量
+            resolvedKey = System.getenv("QWEN_API_KEY");
+            if (resolvedKey != null && !resolvedKey.isEmpty()) {
+                logger.info("Qwen API key resolved from environment variable QWEN_API_KEY");
+            }
+        }
+
+        this.apiKey = resolvedKey;
         this.apiBaseUrl = baseUrl;
         this.defaultModel = model;
     }
@@ -71,34 +89,36 @@ public class QwenAiService implements AiService {
             StringEntity entity = new StringEntity(requestBody, ContentType.APPLICATION_JSON);
             httpPost.setEntity(entity);
 
-            // 发送请求
-            try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-                HttpEntity responseEntity = response.getEntity();
-                String responseString;
+            // 发送请求，使用 ResponseHandler 替代已弃用的 execute(ClassicHttpRequest)
+            String responseString = httpClient.execute(httpPost, httpResponse -> {
+                HttpEntity responseEntity = httpResponse.getEntity();
+                String body;
                 try {
-                    responseString = EntityUtils.toString(responseEntity);
+                    body = responseEntity != null ? EntityUtils.toString(responseEntity) : "";
                 } catch (org.apache.hc.core5.http.ParseException e) {
                     logger.severe("Error parsing HTTP response: " + e.getMessage());
                     throw new RuntimeException("Error parsing HTTP response", e);
                 }
 
-                // 检查响应状态码
-                if (response.getCode() != 200) {
-                    logger.severe("API request failed with status: " + response.getCode() + ", response: " + responseString);
-                    throw new RuntimeException("API request failed with status: " + response.getCode() + ", response: " + responseString);
+                int status = httpResponse.getCode();
+                if (status != 200) {
+                    logger.severe("API request failed with status: " + status + ", response: " + body);
+                    throw new RuntimeException("API request failed with status: " + status + ", response: " + body);
                 }
 
-                // 解析响应
-                AiResponse aiResponse;
-                try {
-                    aiResponse = objectMapper.readValue(responseString, AiResponse.class);
-                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-                    logger.severe("Error parsing AI response: " + e.getMessage());
-                    logger.severe("Response content: " + responseString);
-                    throw new RuntimeException("Error parsing AI response", e);
-                }
-                return aiResponse;
+                return body;
+            });
+
+            // 解析响应
+            AiResponse aiResponse;
+            try {
+                aiResponse = objectMapper.readValue(responseString, AiResponse.class);
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                logger.severe("Error parsing AI response: " + e.getMessage());
+                logger.severe("Response content: " + responseString);
+                throw new RuntimeException("Error parsing AI response", e);
             }
+            return aiResponse;
         } catch (IOException e) {
             logger.severe("Error calling Qwen API: " + e.getMessage());
             throw new RuntimeException("Error calling Qwen API", e);
@@ -140,6 +160,8 @@ public class QwenAiService implements AiService {
     }
 
     // 内部类用于适配Qwen API格式
+    @SuppressWarnings("unused")
+    @JsonAutoDetect(fieldVisibility = Visibility.ANY)
     private static class QwenRequest {
         private String model;
         private java.util.List<AiRequest.Message> messages;
@@ -147,20 +169,17 @@ public class QwenAiService implements AiService {
         private Integer max_tokens;
         private Boolean stream;
 
-        // Getters and Setters
         public String getModel() { return model; }
-        public void setModel(String model) { this.model = model; }
-
         public java.util.List<AiRequest.Message> getMessages() { return messages; }
-        public void setMessages(java.util.List<AiRequest.Message> messages) { this.messages = messages; }
-
         public Double getTemperature() { return temperature; }
-        public void setTemperature(Double temperature) { this.temperature = temperature; }
-
         public Integer getMax_tokens() { return max_tokens; }
-        public void setMax_tokens(Integer max_tokens) { this.max_tokens = max_tokens; }
-
         public Boolean getStream() { return stream; }
+        
+
+        public void setModel(String model) { this.model = model; }
+        public void setMessages(java.util.List<AiRequest.Message> messages) { this.messages = messages; }
+        public void setTemperature(Double temperature) { this.temperature = temperature; }
+        public void setMax_tokens(Integer max_tokens) { this.max_tokens = max_tokens; }
         public void setStream(Boolean stream) { this.stream = stream; }
     }
 }

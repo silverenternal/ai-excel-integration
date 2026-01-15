@@ -3,7 +3,6 @@ package com.example.aiexcel.service.excel.impl;
 import com.example.aiexcel.service.excel.ExcelService;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.multipart.MultipartFile;
@@ -800,6 +799,7 @@ public class ExcelServiceImpl implements ExcelService {
      * @param workbook 工作簿
      * @param cell 要计算的单元格
      */
+    @SuppressWarnings("unused")
     private void evaluateFormulaCell(Workbook workbook, Cell cell) {
         if (cell == null) {
             return;
@@ -817,6 +817,7 @@ public class ExcelServiceImpl implements ExcelService {
      * @param workbook 工作簿
      * @param cell 要计算的单元格
      */
+    @SuppressWarnings("unused")
     private void evaluateFormulaCellAndSetValue(Workbook workbook, Cell cell) {
         if (cell == null) {
             return;

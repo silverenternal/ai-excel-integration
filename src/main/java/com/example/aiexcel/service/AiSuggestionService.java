@@ -309,7 +309,6 @@ public class AiSuggestionService {
     /**
      * 解析AI建议响应
      */
-    @SuppressWarnings("unchecked")
     private Map<String, Object> parseAISuggestions(String aiResponse) {
         // 这里可以实现更复杂的JSON解析逻辑
         // 目前我们返回一个包含原始响应的简单结构
@@ -431,6 +430,7 @@ public class AiSuggestionService {
     /**
      * 数据类型统计内部类
      */
+    @SuppressWarnings("unused")
     private static class DataTypeStats {
         private int count = 0;
         private int emptyCount = 0;

@@ -1,6 +1,5 @@
 package com.example.aiexcel;
 
-import com.example.aiexcel.service.ai.AiService;
 import com.example.aiexcel.service.ai.impl.QwenAiService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

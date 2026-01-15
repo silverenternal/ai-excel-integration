@@ -1,7 +1,5 @@
 package com.example.aiexcel.websocket;
 
-import com.example.aiexcel.dto.AiRequest;
-import com.example.aiexcel.dto.AiResponse;
 import com.example.aiexcel.service.AiExcelIntegrationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @ServerEndpoint("/websocket/{clientId}")
+@SuppressWarnings("unused")
 public class ExcelWebSocketHandler {
 
     private static AiExcelIntegrationService aiExcelIntegrationService;
