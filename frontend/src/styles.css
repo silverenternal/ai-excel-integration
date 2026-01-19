@@ -1,0 +1,146 @@
+* { box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; background:#0f1724; color:#e6eef8 }
+.app { display:flex; height:100vh; }
+.sidebar { width:64px; background:linear-gradient(180deg,#1f2937,#111827); padding:12px 8px; display:flex; flex-direction:column; transition: width .22s ease, padding .18s ease }
+.sidebar:hover { width:200px; padding:16px }
+.nav-link { color:inherit; text-decoration:none; padding:8px; border-radius:6px; display:flex; gap:8px; align-items:center; overflow:hidden; transition:justify-content .18s ease, padding .18s ease }
+.nav-link svg { opacity:0.95; width:16px; height:16px; flex:0 0 16px }
+.nav-link span { font-size:14px; display:inline-block; white-space:nowrap; overflow:hidden; max-width:0; opacity:0; margin-left:0; transition: max-width .22s ease, opacity .18s linear, margin-left .18s }
+.nav-link:hover { background:rgba(255,255,255,0.02); }
+
+/* collapsed behavior: center icons and hide labels */
+.sidebar:not(:hover) .nav-link { justify-content:center; padding:10px 6px }
+.sidebar:not(:hover) .nav-link span { max-width:0; opacity:0; margin-left:0 }
+
+/* expanded behavior: show labels and left-align items */
+.sidebar:hover .nav-link { justify-content:flex-start; padding:8px 12px }
+.sidebar:hover .nav-link span { max-width:160px; opacity:1; margin-left:8px }
+.nav-link.router-link-active { background:linear-gradient(90deg, rgba(124,58,237,0.16), rgba(56,189,248,0.06)); box-shadow: inset 3px 0 0 0 rgba(124,58,237,0.6); }
+.main { flex:1; display:flex; flex-direction:column }
+.topbar { padding:12px 16px; background:rgba(255,255,255,0.03); display:flex; gap:12px; align-items:center }
+.topbar { padding:16px; background:rgba(255,255,255,0.03); display:flex; gap:12px; align-items:center }
+.content { display:flex; flex:1; gap:12px; padding:12px }
+.preview { flex:1; background:rgba(255,255,255,0.02); border-radius:6px; padding:0; overflow:auto; min-height:90vh }
+.right { width:360px; display:flex; flex-direction:column; gap:12px }
+.card { background:rgba(255,255,255,0.02); border-radius:6px; padding:12px }
+button { background:#7c3aed; color:white; border:0; padding:8px 10px; border-radius:6px }
+input, textarea { width:100%; padding:8px; border-radius:6px; border:1px solid rgba(255,255,255,0.06); background:transparent; color:inherit }
+table { width:100%; border-collapse:collapse }
+td, th { padding:6px; border-bottom:1px solid rgba(255,255,255,0.03); font-size:13px }
+.muted { color:rgba(230,238,248,0.6); font-size:13px }
+
+/* Ensure topbar left text aligns to target width: padding*2 + width = 901.188px */
+.topbar > .muted {
+	/* Adjusted to match latest measurement: set width so that
+		 under_width = up_width + padding*2 holds.
+		 Using user's reported under_width = 1043.850 and padding=16,
+		 up_width should be 1043.850 - 32 = 1011.85 */
+	width: 1011.85px;
+	max-width: calc(100% - 160px);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.lang-btn { background:transparent; color:inherit; border:1px solid rgba(255,255,255,0.06); padding:4px 8px; border-radius:4px; cursor:pointer; font-size:12px; transition: opacity .18s ease }
+.lang-btn.active { background:rgba(255,255,255,0.06); box-shadow: inset 0 -2px 0 rgba(124,58,237,0.6) }
+
+/* bottom muted text and language buttons hidden when collapsed */
+.sidebar:not(:hover) .muted { opacity:0 }
+.sidebar:not(:hover) .lang-btn { opacity:0; pointer-events:none }
+.sidebar:hover .muted { opacity:1 }
+.sidebar:hover .lang-btn { opacity:1; pointer-events:auto }
+
+/* small circular icon button used in topbar */
+.icon-btn { width:34px; height:34px; padding:0; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; border:0; background:rgba(255,255,255,0.02); color:inherit; cursor:pointer }
+.icon-btn i { font-size:14px }
+.icon-btn:hover { background: linear-gradient(90deg, rgba(124,58,237,0.16), rgba(56,189,248,0.06)); box-shadow: 0 6px 18px rgba(0,0,0,0.25) }
+
+/* File uploader and workspace panel styles */
+.card-header { font-weight:600; padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.02); display:flex; align-items:center; gap:8px }
+.workspace-panel .card { padding:0; overflow:visible }
+.file-upload-area { border:1px dashed rgba(255,255,255,0.06); border-radius:8px; padding:20px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent); transition:all .18s ease }
+.file-upload-area i.bi { font-size:32px; color:rgba(124,58,237,0.9) }
+.file-upload-area h5 { margin:0; font-size:16px; color:inherit }
+.cloud-icon { color:rgba(51, 95, 237, 0.92); }
+.file-upload-area .btn.btn-primary {
+	padding:12px 24px;
+	border-radius:14px;
+	font-size:15px;
+	display:inline-flex;
+	align-items:center;
+	gap:8px;
+	box-shadow: 0 10px 28px rgba(124,58,237,0.16);
+	min-width:140px;
+}
+
+.file-upload-area .btn.btn-primary i { font-size:16px }
+.file-upload-area .text-muted { font-size:13px }
+.file-upload-area p.text-muted { margin:0; color:rgba(230,238,248,0.6); font-size:13px }
+.file-upload-area .btn { margin-top:8px }
+.file-upload-area:focus-within, .file-upload-area:hover { background:rgba(255,255,255,0.02); box-shadow:0 6px 18px rgba(0,0,0,0.25) }
+.file-upload-area.dragover { background:linear-gradient(90deg, rgba(124,58,237,0.06), rgba(56,189,248,0.04)); border-color:rgba(124,58,237,0.6) }
+
+/* small column remove icon in table headers */
+table thead th { position: relative }
+.col-remove { position: absolute; top:6px; right:6px; width:16px; height:16px; line-height:14px; padding:0; border-radius:8px; border:0; background:rgba(255,255,255,0.03); color:rgba(230,238,248,0.9); font-size:12px; cursor:pointer }
+.col-remove:hover { background: linear-gradient(90deg, rgba(124,58,237,0.16), rgba(56,189,248,0.06)); color:white }
+
+#fileList { border-top:1px solid rgba(255,255,255,0.02); padding-top:8px }
+.file-item { display:flex; align-items:center; justify-content:space-between; padding:8px 6px; border-radius:6px }
+.file-item + .file-item { margin-top:6px }
+.file-item .name { color:inherit; font-size:13px }
+.file-item .meta { color:rgba(230,238,248,0.6); font-size:12px }
+.d-none { display:none }
+
+/* small utilities */
+.mt-3 { margin-top:12px }
+.me-2 { margin-right:8px }
+.btn-sm { padding:6px 8px; font-size:13px }
+.btn-outline-primary { background:transparent; border:1px solid rgba(124,58,237,0.18); color:inherit }
+
+/* AI stream container: taller and themed scrollbar */
+.ai-stream-container { min-height: 68vh; max-height: 68vh; overflow:auto; padding-right:6px }
+
+/* WebKit scrollbars */
+.ai-stream-container::-webkit-scrollbar { width: 10px; background: transparent }
+.ai-stream-container::-webkit-scrollbar-track { background: transparent }
+.ai-stream-container::-webkit-scrollbar-thumb { background: linear-gradient(180deg, rgba(124,58,237,0.9), rgba(56,189,248,0.9)); border-radius: 10px }
+.ai-stream-container::-webkit-scrollbar-thumb:hover { filter: brightness(0.9) }
+
+/* Firefox */
+.ai-stream-container { scrollbar-color: rgba(255, 255, 255, 0.9) transparent; scrollbar-width: thin }
+
+/* ensure AI message cards inside have consistent padding when scrolled */
+.ai-stream-container .card { margin-bottom:8px }
+
+/* Apply same themed scrollbar to data preview */
+.preview { scrollbar-color: rgba(255, 255, 255, 0.9) transparent; scrollbar-width: thin }
+.preview::-webkit-scrollbar { width: 10px; background: transparent }
+.preview::-webkit-scrollbar-track { background: transparent }
+.preview::-webkit-scrollbar-thumb { background: linear-gradient(180deg, rgba(124,58,237,0.9), rgba(56,189,248,0.9)); border-radius: 10px }
+.preview::-webkit-scrollbar-thumb:hover { filter: brightness(0.9) }
+
+/* Floating AI input at bottom-right */
+.right { position: relative }
+.floating-ai-input { position: absolute; right: 12px; bottom: 12px; width: calc(100% - 24px); z-index: 1200 }
+.floating-ai-input > div { background: rgba(255,255,255,0.02); border-radius: 10px; padding: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.45) }
+.floating-ai-input textarea { min-height:64px }
+
+/* Pill-style new chat button (circle icon + label) */
+.new-chat-btn { display:inline-flex; align-items:center; gap:12px; padding:8px 12px; min-height:28px; border-radius:20px; background: linear-gradient(180deg,#4f26b7,#8505a8); color:#fff; border:1px solid rgba(255,255,255,0.06); box-shadow: 0 10px 30px rgba(8,120,80,0.18); font-weight:500; font-size:15px; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease }
+.new-chat-btn:hover { transform:translateY(-2px); box-shadow: 0 18px 44px rgba(8,120,80,0.24) }
+.new-chat-circle { width:24px; height:24px; border-radius:50%; background:#fff; display:inline-flex; align-items:center; justify-content:center; box-shadow: inset 0 -2px 0 rgba(0,0,0,0.06); border:1px solid rgba(15,164,106,0.06) }
+.new-chat-circle i { color:#8505a8; font-size:18px }
+.new-chat-label { color:#fff; font-size:16px; padding-right:6px }
+
+/* Unified section titles: match Data Preview's heading appearance */
+.preview h4, .preview h2, .card h4, .card h2 {
+	margin: 0 0 12px;
+	color: #ffffff;
+	font-weight: 600;
+	font-size: 16px;
+}
+
+/* Slightly larger top-level page titles (h2) */
+.preview h2, .card h2 { font-size:18px }

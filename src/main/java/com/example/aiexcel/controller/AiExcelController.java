@@ -6,6 +6,8 @@ import com.example.aiexcel.service.ai.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.example.aiexcel.config.EnvFileReader;
+import java.util.Properties;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -248,8 +250,25 @@ public class AiExcelController {
         // 使用AI服务的连接测试方法来检测API配置状态
         boolean apiConfigured = aiService.testConnection();
 
-        // 直接使用AI服务来检查API是否配置正确
-        boolean hasApiKey = apiConfigured; // 如果连接测试成功，说明API Key已配置
+        // 优先从真实环境变量读取 QWEN_API_KEY
+        String key = System.getenv("QWEN_API_KEY");
+
+        // 若环境变量不存在或为空，尝试从项目根目录的 .env 文件读取
+        if (key == null || key.isEmpty()) {
+            try {
+                Properties props = EnvFileReader.loadEnvFile();
+                if (props != null) {
+                    String fromFile = props.getProperty("QWEN_API_KEY");
+                    if (fromFile != null && !fromFile.isEmpty()) {
+                        key = fromFile;
+                    }
+                }
+            } catch (Exception ignored) {
+                // 忽略读取失败
+            }
+        }
+
+        boolean hasApiKey = key != null && !key.isEmpty();
 
         Map<String, Object> response = Map.of(
             "hasApiKey", hasApiKey,

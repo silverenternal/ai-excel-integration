@@ -49,25 +49,48 @@ public class QwenAiService implements AiService {
     public QwenAiService(@Value("${qwen.api.api-key:}") String apiKeyFromConfig,
                          @Value("${qwen.api.base-url:https://dashscope.aliyuncs.com/compatible-mode/v1}") String baseUrl,
                          @Value("${qwen.api.default-model:qwen-max}") String model) {
-        // 仅使用从配置属性获取的API Key，系统会自动从.env文件加载
-        String resolvedKey = apiKeyFromConfig;
-        if (resolvedKey == null || resolvedKey.isEmpty()) {
-            // 回退到 System properties
-            resolvedKey = System.getProperty("qwen.api.api-key");
-            if (resolvedKey != null && !resolvedKey.isEmpty()) {
-                logger.info("Qwen API key resolved from System properties");
-            }
+        // 尝试按优先级解析 API Key：环境变量优先（DASHSCOPE_API_KEY -> QWEN_API_KEY），
+        // 然后 System properties，再最后使用配置注入的值（用于测试）。
+        String resolvedKey = null;
+
+        // 1) 优先 DASHSCOPE_API_KEY（适配 DashScope 文档推荐）
+        resolvedKey = System.getenv("DASHSCOPE_API_KEY");
+        if (resolvedKey != null && !resolvedKey.isEmpty()) {
+            logger.info("Qwen API key resolved from environment variable DASHSCOPE_API_KEY");
         }
 
+        // 2) 回退到 QWEN_API_KEY（历史兼容）
         if (resolvedKey == null || resolvedKey.isEmpty()) {
-            // 回退到环境变量
             resolvedKey = System.getenv("QWEN_API_KEY");
             if (resolvedKey != null && !resolvedKey.isEmpty()) {
                 logger.info("Qwen API key resolved from environment variable QWEN_API_KEY");
             }
         }
 
+        // 3) 再尝试 System properties
+        if (resolvedKey == null || resolvedKey.isEmpty()) {
+            resolvedKey = System.getProperty("qwen.api.api-key");
+            if (resolvedKey != null && !resolvedKey.isEmpty()) {
+                logger.info("Qwen API key resolved from System properties");
+            }
+        }
+
+        // 4) 最后使用注入的配置值（通常来自 application.properties 或 EnvFile 环境注入）
+        if (resolvedKey == null || resolvedKey.isEmpty()) {
+            resolvedKey = apiKeyFromConfig;
+            if (resolvedKey != null && !resolvedKey.isEmpty()) {
+                logger.info("Qwen API key resolved from configuration property qwen.api.api-key");
+            }
+        }
+
         this.apiKey = resolvedKey;
+        // 简单格式校验并给出可操作提示（避免常见填错其他厂商的 key）
+        if (this.apiKey != null && !this.apiKey.isEmpty()) {
+            String trimmed = this.apiKey.trim();
+            if (!trimmed.startsWith("sk-")) {
+                logger.warning("Resolved API key does not start with 'sk-'. Ensure you are using a DashScope API key (sk-...).");
+            }
+        }
         // 确保 baseUrl 有效（防止被错误覆盖为空或被截断导致 HttpClient 报错 "Target host is not specified"）
         String resolvedBase = baseUrl != null ? baseUrl.trim() : null;
 
@@ -148,9 +171,24 @@ public class QwenAiService implements AiService {
                 int status = httpResponse.getCode();
                 if (status != 200) {
                     // 更丰富的错误日志
-                    logger.severe("API request failed -> url=" + apiBaseUrl + "/chat/completions" + ", status=" + status + ", model=" + qwenRequest.getModel());
+                    logger.severe("API request failed -> url="+ apiBaseUrl + "/chat/completions" + ", status=" + status + ", model=" + qwenRequest.getModel());
                     logger.severe("Response body: " + body);
                     logger.severe("API key (masked): " + maskKey(apiKey));
+
+                    // 针对 401 提供可操作提示（参考 DashScope 文档）
+                    if (status == 401) {
+                        try {
+                            if (body != null && body.contains("invalid_api_key")) {
+                                logger.warning("Invalid API key provided (invalid_api_key). Suggestions:");
+                                logger.warning(" - Ensure you're providing the correct API key (starts with 'sk-') and not a literal code snippet.");
+                                logger.warning(" - If you set the key via environment variables, prefer 'DASHSCOPE_API_KEY' or 'QWEN_API_KEY'.");
+                                logger.warning(" - Confirm the Base URL matches the key's region: use 'dashscope.aliyuncs.com' for China (Beijing) or 'dashscope-intl.aliyuncs.com' for Intl (Singapore).");
+                                logger.warning(" - If unsure, re-create or retrieve a fresh API key from DashScope console.");
+                            }
+                        } catch (Exception ignore) {
+                        }
+                    }
+
                     throw new RuntimeException("API request failed with status: " + status + ", response: " + body);
                 }
 
