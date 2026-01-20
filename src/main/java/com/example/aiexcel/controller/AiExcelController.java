@@ -3,11 +3,10 @@ package com.example.aiexcel.controller;
 import com.example.aiexcel.service.AiAdvancedOperationsService;
 import com.example.aiexcel.service.AiExcelIntegrationService;
 import com.example.aiexcel.service.ai.AiService;
+import com.example.aiexcel.config.EnvFile;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.example.aiexcel.config.EnvFileReader;
-import java.util.Properties;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -246,35 +245,48 @@ public class AiExcelController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> getApiStatus() {
-        // 使用AI服务的连接测试方法来检测API配置状态
-        boolean apiConfigured = aiService.testConnection();
+    public ResponseEntity<Map<String, Object>> getApiStatus(@RequestParam(value = "reveal", required = false, defaultValue = "false") boolean reveal) {
+        // 使用统一的 EnvFile 工具读取运行时配置
+        String foundKey = com.example.aiexcel.config.EnvFile.getApiKey();
+        boolean hasApiKey = foundKey != null && !foundKey.isEmpty();
+        Integer connectionStatus = aiService.testConnection();
+        boolean apiConfigured = connectionStatus != null && connectionStatus == 200;
 
-        // 优先从真实环境变量读取 QWEN_API_KEY
-        String key = System.getenv("QWEN_API_KEY");
+        String resolvedBase = com.example.aiexcel.config.EnvFile.getBaseUrl();
+        boolean isDev = com.example.aiexcel.config.EnvFile.isDev();
 
-        // 若环境变量不存在或为空，尝试从项目根目录的 .env 文件读取
-        if (key == null || key.isEmpty()) {
-            try {
-                Properties props = EnvFileReader.loadEnvFile();
-                if (props != null) {
-                    String fromFile = props.getProperty("QWEN_API_KEY");
-                    if (fromFile != null && !fromFile.isEmpty()) {
-                        key = fromFile;
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("hasApiKey", hasApiKey);
+        response.put("apiConfigured", apiConfigured);
+        response.put("status", "available");
+
+        if (isDev) {
+            java.util.Map<String, Object> diag = new java.util.HashMap<>();
+            String source = hasApiKey ? "env/system/.env (via EnvFile)" : "none";
+            diag.put("keySource", source);
+            diag.put("keyMasked", EnvFile.mask(foundKey));
+            if (reveal) diag.put("keyPlain", foundKey);
+            diag.put("keyFormatOk", hasApiKey && foundKey.trim().startsWith("sk-"));
+            diag.put("baseUrlDetected", resolvedBase);
+
+            // 仅在出现 401 （未经授权）时才显示后续建议；其他情况下不显示建议
+            if (connectionStatus != null && connectionStatus == 401) {
+                java.util.List<String> suggestions = new java.util.ArrayList<>();
+                if (!hasApiKey) {
+                    suggestions.add("未检测到 API Key：请通过环境变量 DASHSCOPE_API_KEY 或 QWEN_API_KEY 设置密钥，或在 .env 中配置（仅用于本地调试）。");
+                } else {
+                    if (!foundKey.trim().startsWith("sk-")) {
+                        suggestions.add("检测到的密钥格式异常：DashScope 的 API Key 通常以 'sk-' 开头，请确认证书不是其他厂商的密钥。");
                     }
+                    suggestions.add("出现 401，请确认所用 API Key 未被删除或过期，并从 DashScope 控制台重新生成。");
                 }
-            } catch (Exception ignored) {
-                // 忽略读取失败
+                suggestions.add("确认 Base URL 与 API Key 所属地域匹配：\n - 中国（北京）：https://dashscope.aliyuncs.com/compatible-mode/v1\n - 国际（新加坡）：https://dashscope-intl.aliyuncs.com/compatible-mode/v1");
+                suggestions.add("不要将密钥写入生产代码或长时间放在 JVM 启动参数中（进程列表可能泄露）。");
+
+                diag.put("suggestions", suggestions);
             }
+            response.put("diagnosis", diag);
         }
-
-        boolean hasApiKey = key != null && !key.isEmpty();
-
-        Map<String, Object> response = Map.of(
-            "hasApiKey", hasApiKey,
-            "apiConfigured", apiConfigured,
-            "status", "available"
-        );
 
         return ResponseEntity.ok(response);
     }

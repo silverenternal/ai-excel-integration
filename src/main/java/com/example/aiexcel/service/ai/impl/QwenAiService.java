@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.logging.Logger;
+import com.example.aiexcel.config.EnvFile;
 
 @Service
 public class QwenAiService implements AiService {
@@ -49,60 +50,29 @@ public class QwenAiService implements AiService {
     public QwenAiService(@Value("${qwen.api.api-key:}") String apiKeyFromConfig,
                          @Value("${qwen.api.base-url:https://dashscope.aliyuncs.com/compatible-mode/v1}") String baseUrl,
                          @Value("${qwen.api.default-model:qwen-max}") String model) {
-        // 尝试按优先级解析 API Key：环境变量优先（DASHSCOPE_API_KEY -> QWEN_API_KEY），
-        // 然后 System properties，再最后使用配置注入的值（用于测试）。
-        String resolvedKey = null;
-
-        // 1) 优先 DASHSCOPE_API_KEY（适配 DashScope 文档推荐）
-        resolvedKey = System.getenv("DASHSCOPE_API_KEY");
+        // 统一从 EnvFile 读取配置，EnvFile 会优先读取环境变量/系统属性
+        String resolvedKey = EnvFile.getApiKey();
         if (resolvedKey != null && !resolvedKey.isEmpty()) {
-            logger.info("Qwen API key resolved from environment variable DASHSCOPE_API_KEY");
-        }
-
-        // 2) 回退到 QWEN_API_KEY（历史兼容）
-        if (resolvedKey == null || resolvedKey.isEmpty()) {
-            resolvedKey = System.getenv("QWEN_API_KEY");
-            if (resolvedKey != null && !resolvedKey.isEmpty()) {
-                logger.info("Qwen API key resolved from environment variable QWEN_API_KEY");
-            }
-        }
-
-        // 3) 再尝试 System properties
-        if (resolvedKey == null || resolvedKey.isEmpty()) {
-            resolvedKey = System.getProperty("qwen.api.api-key");
-            if (resolvedKey != null && !resolvedKey.isEmpty()) {
-                logger.info("Qwen API key resolved from System properties");
-            }
-        }
-
-        // 4) 最后使用注入的配置值（通常来自 application.properties 或 EnvFile 环境注入）
-        if (resolvedKey == null || resolvedKey.isEmpty()) {
+            logger.info("Qwen API key resolved from EnvFile");
+        } else if (apiKeyFromConfig != null && !apiKeyFromConfig.isEmpty()) {
             resolvedKey = apiKeyFromConfig;
-            if (resolvedKey != null && !resolvedKey.isEmpty()) {
-                logger.info("Qwen API key resolved from configuration property qwen.api.api-key");
-            }
+            logger.info("Qwen API key resolved from injected configuration property");
         }
 
         this.apiKey = resolvedKey;
-        // 简单格式校验并给出可操作提示（避免常见填错其他厂商的 key）
         if (this.apiKey != null && !this.apiKey.isEmpty()) {
             String trimmed = this.apiKey.trim();
             if (!trimmed.startsWith("sk-")) {
                 logger.warning("Resolved API key does not start with 'sk-'. Ensure you are using a DashScope API key (sk-...).");
             }
         }
-        // 确保 baseUrl 有效（防止被错误覆盖为空或被截断导致 HttpClient 报错 "Target host is not specified"）
-        String resolvedBase = baseUrl != null ? baseUrl.trim() : null;
 
-        // 尝试从 System properties 或环境变量回退（如果传入的 baseUrl 看起来不完整）
+        // base url & model 也统一通过 EnvFile 获取，保留注入值作为回退
+        String resolvedBase = EnvFile.getBaseUrl();
         if (resolvedBase == null || resolvedBase.isEmpty()) {
-            resolvedBase = System.getProperty("qwen.api.base-url");
-            if (resolvedBase == null || resolvedBase.isEmpty()) {
-                resolvedBase = System.getenv("QWEN_API_BASE_URL");
-            }
+            resolvedBase = baseUrl != null ? baseUrl.trim() : null;
         }
 
-        // 简单校验 URL 是否看起来像一个完整的主机地址（protocol://host...）
         boolean validBase = resolvedBase != null && resolvedBase.matches("^https?://[^/\\s]+.*$");
         if (!validBase) {
             String received = resolvedBase == null ? "<null>" : resolvedBase;
@@ -113,7 +83,7 @@ public class QwenAiService implements AiService {
         }
 
         logger.info("qwen.api.base-url resolved to: " + this.apiBaseUrl);
-        this.defaultModel = model;
+        this.defaultModel = EnvFile.getDefaultModel();
     }
 
     @Override
@@ -222,28 +192,32 @@ public class QwenAiService implements AiService {
     }
 
     @Override
-    public boolean testConnection() {
-        // 检查API密钥 - 仅使用配置属性获取的值
+    public Integer testConnection() {
+        // 如果没有配置 API Key，则不做请求，返回 null（表示未执行请求）
         if (apiKey == null || apiKey.isEmpty()) {
             logger.warning("API Key is not configured for connection test.");
-            return false;
+            return null;
         }
 
         try {
-            AiRequest testRequest = new AiRequest();
-            testRequest.setModel(defaultModel);
-            testRequest.setMessages(java.util.Arrays.asList(
-                new AiRequest.Message("user", "Hello")
-            ));
-            testRequest.setTemperature(0.1);
-            testRequest.setMaxTokens(10);
+            // 构造一个极小的请求体用于检测状态码，不走 generateResponse 以避免抛出异常
+            QwenRequest qwenRequest = new QwenRequest();
+            qwenRequest.setModel(defaultModel);
+            qwenRequest.setMessages(java.util.Arrays.asList(new AiRequest.Message("user", "Hello")));
+            qwenRequest.setTemperature(0.1);
+            qwenRequest.setMax_tokens(10);
+            qwenRequest.setStream(false);
 
-            AiResponse response = generateResponse(testRequest);
-            return response != null && response.getChoices() != null &&
-                   response.getChoices().length > 0;
+            String requestBody = objectMapper.writeValueAsString(qwenRequest);
+            HttpPost httpPost = new HttpPost(apiBaseUrl + "/chat/completions");
+            httpPost.setHeader("Authorization", "Bearer " + apiKey);
+            httpPost.setHeader("Content-Type", "application/json");
+            httpPost.setEntity(new StringEntity(requestBody, ContentType.APPLICATION_JSON));
+
+            return httpClient.execute(httpPost, httpResponse -> httpResponse.getCode());
         } catch (Exception e) {
             logger.warning("Connection test failed: " + e.getMessage());
-            return false;
+            return null;
         }
     }
 

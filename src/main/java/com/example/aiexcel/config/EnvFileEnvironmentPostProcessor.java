@@ -113,14 +113,22 @@ public class EnvFileEnvironmentPostProcessor implements EnvironmentPostProcessor
                         value = value.substring(1, value.length() - 1);
                     } else {
                         // 去除未被引号包裹情况下的行内注释（例如: value  # comment）
-                        int commentIdx = value.indexOf('#');
-                        if (commentIdx >= 0) {
-                            value = value.substring(0, commentIdx).trim();
-                        }
-                        // 也处理常见的双斜线注释
-                        int slashIdx = value.indexOf("//");
-                        if (slashIdx >= 0) {
-                            value = value.substring(0, slashIdx).trim();
+                        // 注意：不要把 URL 中的 '//' 误当作注释（例如 https://...），
+                        // 因此如果值以 http:// 或 https:// 开头，我们保留原样。
+                        String lowered = value.toLowerCase();
+                        if (lowered.startsWith("http://") || lowered.startsWith("https://")) {
+                            // 保留 URL 原样（但仍去除两端空白）
+                            value = value.trim();
+                        } else {
+                            int commentIdx = value.indexOf('#');
+                            if (commentIdx >= 0) {
+                                value = value.substring(0, commentIdx).trim();
+                            }
+                            // 仅在非 URL 情况下处理双斜线注释
+                            int slashIdx = value.indexOf("//");
+                            if (slashIdx >= 0) {
+                                value = value.substring(0, slashIdx).trim();
+                            }
                         }
                     }
 
