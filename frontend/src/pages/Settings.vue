@@ -85,6 +85,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { checkServiceStatus, getSystemSettings, saveSystemSettings } from '@/services/api'
+import { fetchJson, setApiBaseUrl } from '@/services/apiClient'
 
 const { t } = useI18n()
 
@@ -128,8 +129,10 @@ async function saveApiConfig() {
   }
 
   try {
-    const result = await saveSystemSettings(settings)
+    const result = await saveSystemSettings(settings, apiEndpoint.value)
     if (result && result.success) {
+      // update client cached base so subsequent calls use new endpoint
+      try { setApiBaseUrl(apiEndpoint.value) } catch (e) { }
       alert(t('savedApi', { api: apiEndpoint.value }))
     } else {
       alert(t('saveFailed'))
@@ -146,7 +149,10 @@ async function checkStatus() {
   wsConfigStatus.value = t('checking')
 
   try {
-    const result = await checkServiceStatus()
+    // Prefer using the API endpoint configured in this page (unsaved value allowed)
+    const base = (apiEndpoint.value || '').replace(/\/$/, '')
+    const url = `${base}/api/status`
+    const result = await fetchJson(url)
 
     if (result && typeof result === 'object') {
       backendStatus.value = result.status === 'available' ? t('status_active') : t('status_inactive')
@@ -187,7 +193,7 @@ async function saveSystemConfig() {
 // 初始化
 onMounted(async () => {
   try {
-    const result = await getSystemSettings()
+    const result = await getSystemSettings(apiEndpoint.value)
     if (result.success) {
       const data = result.data
       apiEndpoint.value = data.apiEndpoint || apiEndpoint.value

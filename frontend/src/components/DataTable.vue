@@ -7,6 +7,7 @@
         <div style="display:flex; gap:8px">
           <button @click="addColumn">{{ $t('addColumn') }}</button>
           <button @click="addRow">{{ $t('addRow') }}</button>
+          <button v-if="props.showExport" @click="$emit('export')">{{ $t('export') || '导出' }}</button>
         </div>
       </div>
 
@@ -36,8 +37,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-const props = defineProps<{ data: string[][] }>()
-const emit = defineEmits(['updateCell','updateData'])
+const props = defineProps<{ data: string[][], showExport?: boolean }>()
+const emit = defineEmits(['updateCell','updateData','export'])
 
 const header = computed(() => props.data[0] || [])
 const body = computed(() => props.data.slice(1))

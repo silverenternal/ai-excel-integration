@@ -59,6 +59,18 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ## 3. AI处理接口
 
 ### 3.1 与AI一起处理Excel
@@ -127,6 +139,28 @@ curl -X POST \
   --output modified_sample.xlsx
 ```
 
+#### 响应示例（200 OK — 文件流）
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Disposition: attachment; filename="modified_sample.xlsx"
+
+<binary file stream>
+```
+
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 3.3 生成Excel公式
 
 - **接口**: `POST /api/ai/generate-formula`
@@ -153,6 +187,18 @@ curl -X POST \
   "formula": "=A1-B1",
   "context": "A列是销售额，B列是成本",
   "goal": "计算利润"
+}
+```
+
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
 }
 ```
 
@@ -186,6 +232,18 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 3.5 建议图表
 
 - **接口**: `POST /api/ai/suggest-charts`
@@ -212,6 +270,18 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 3.6 AI聊天接口
 
 - **接口**: `POST /api/ai/chat`
@@ -235,6 +305,18 @@ curl -X POST \
 {
   "success": true,
   "message": "当然可以！我可以帮您处理Excel文件，包括：1.数据清理和转换，2.自动填充和计算，3.图表创建，4.数据分析和洞察。请上传您的Excel文件并告诉我您需要做什么。"
+}
+```
+
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
 }
 ```
 
@@ -300,6 +382,18 @@ event: done
 data: [DONE]
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ## 4. 数据分析接口
 
 ### 4.1 读取Excel数据
@@ -332,6 +426,22 @@ curl -X POST \
 }
 ```
 
+```
+
+#### 错误示例（404 Not Found）
+
+```
+
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "File not found or could not be processed"
+}
+
+```
+
 ### 4.2 创建图表
 
 - **接口**: `POST /api/excel/create-chart`
@@ -360,6 +470,18 @@ curl -X POST \
   "chartInstructions": "1.选择数据范围A1:B10，2.插入->图表->柱状图，3.添加标题'销售数据图表'，4.调整图表样式",
   "chartType": "bar",
   "targetColumn": "Sales"
+}
+```
+
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "File not found or could not be processed"
 }
 ```
 
@@ -394,6 +516,18 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "File not found or could not be processed"
+}
+```
+
 ### 4.4 数据筛选
 
 - **接口**: `POST /api/excel/filter-data`
@@ -425,6 +559,18 @@ curl -X POST \
   "filterColumn": "Region",
   "filterCondition": "equals",
   "filterValue": "North"
+}
+```
+
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "File not found or could not be processed"
 }
 ```
 
@@ -859,6 +1005,18 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 7.4 智能图表创建
 
 - **接口**: `POST /api/ai/smart-chart-creation`
@@ -959,7 +1117,54 @@ curl -X POST \
 }
 ```
 
-### 8.2 健康检查
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
+### 8.3 分析中心系统设置
+
+- **接口**: `GET /api/analysis-center/settings`
+- **功能**: 获取前端显示的系统级设置（包含当前 API endpoint 与 server port）
+- **响应格式**: `application/json`
+- **响应示例**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "apiEndpoint": "http://localhost:8081",
+    "serverPort": 8081,
+    "language": "zh-CN",
+    "theme": "dark",
+    "autoSave": true,
+    "notifications": true
+  }
+}
+```
+
+- **接口**: `POST /api/analysis-center/settings`
+- **功能**: 保存系统设置（演示：直接回显提交的配置）
+- **请求格式**: `application/json`
+- **请求示例**:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"apiEndpoint":"http://localhost:8081","autoSave":true}' \
+  http://localhost:8081/api/analysis-center/settings
+```
+
+**说明**: 在开发环境中，前端会先通过 `/api/config` 获取后端建议的 base URL，再调用该设置接口。若需要在前端临时覆盖目标 API，请在 Settings 页面修改 `API Endpoint` 并保存。
+
+### 8.4 健康检查
 
 - **接口**: `GET /api/health`
 - **功能**: 检查服务健康状态

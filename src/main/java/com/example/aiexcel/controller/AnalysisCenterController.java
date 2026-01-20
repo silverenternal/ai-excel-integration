@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.HashMap;
 import java.util.List;
@@ -54,12 +55,18 @@ public class AnalysisCenterController {
      * 获取系统设置
      */
     @GetMapping("/settings")
-    public ResponseEntity<Map<String, Object>> getSystemSettings() {
+    public ResponseEntity<Map<String, Object>> getSystemSettings(HttpServletRequest request) {
         logger.info("Received request to get system settings");
 
         try {
+            String scheme = request.getScheme();
+            String host = request.getServerName();
+            int port = request.getServerPort();
+            String apiEndpoint = scheme + "://" + host + (port == 80 || port == 443 ? "" : ":" + port);
+
             Map<String, Object> data = new HashMap<>();
-            data.put("apiEndpoint", "http://localhost:8080");
+            data.put("apiEndpoint", apiEndpoint);
+            data.put("serverPort", port);
             data.put("language", "zh-CN");
             data.put("theme", "dark");
             data.put("autoSave", true);
@@ -70,7 +77,7 @@ public class AnalysisCenterController {
                 "data", data
             );
 
-            logger.info("Successfully returned system settings");
+            logger.info("Successfully returned system settings: {}", apiEndpoint);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             logger.error("Error retrieving system settings: {}", e.getMessage(), e);

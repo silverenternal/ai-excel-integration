@@ -106,7 +106,7 @@ function handleFile(file: File){
         progress.value = 0.6
         const data = parseXLSX(buf)
         progress.value = 1
-        emit('fileLoaded', { name: file.name, data })
+        emit('fileLoaded', { name: file.name, data, file })
         selectedName.value = file.name
         setTimeout(()=> progress.value = 0, 500)
       }catch(e){ alert(t('parseFailed')); progress.value = 0 }
@@ -122,7 +122,7 @@ function handleFile(file: File){
     const text = String(reader.result || '')
     const data = parseCSV(text)
     progress.value = 1
-    emit('fileLoaded', { name: file.name, data })
+    emit('fileLoaded', { name: file.name, data, file })
     selectedName.value = file.name
     setTimeout(()=> progress.value = 0, 500)
   }

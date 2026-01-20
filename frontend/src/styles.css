@@ -100,7 +100,7 @@ table thead th { position: relative }
 .btn-outline-primary { background:transparent; border:1px solid rgba(124,58,237,0.18); color:inherit }
 
 /* AI stream container: taller and themed scrollbar */
-.ai-stream-container { min-height: 68vh; max-height: 68vh; overflow:auto; padding-right:6px }
+.ai-stream-container { height: 700px; overflow:auto; padding-right:6px }
 
 /* WebKit scrollbars */
 .ai-stream-container::-webkit-scrollbar { width: 10px; background: transparent }
