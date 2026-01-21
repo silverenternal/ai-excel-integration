@@ -1,8 +1,9 @@
 package com.example.aiexcel.websocket;
 
-import com.example.aiexcel.dto.AiRequest;
-import com.example.aiexcel.dto.AiResponse;
 import com.example.aiexcel.service.AiExcelIntegrationService;
+import com.example.aiexcel.service.FileManagerService;
+import java.util.List;
+import java.util.Map;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -15,13 +16,20 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @ServerEndpoint("/websocket/{clientId}")
+@SuppressWarnings("unused")
 public class ExcelWebSocketHandler {
 
     private static AiExcelIntegrationService aiExcelIntegrationService;
+    private static FileManagerService fileManagerService;
     
     @Autowired
     public void setAiExcelIntegrationService(AiExcelIntegrationService service) {
         ExcelWebSocketHandler.aiExcelIntegrationService = service;
+    }
+
+    @Autowired
+    public void setFileManagerService(FileManagerService service) {
+        ExcelWebSocketHandler.fileManagerService = service;
     }
 
     // 静态变量，用来记录当前在线连接数
@@ -53,6 +61,33 @@ public class ExcelWebSocketHandler {
             sendMessage("{\"type\":\"connected\",\"message\":\"WebSocket connection established\",\"clientId\":\"" + clientId + "\"}");
         } catch (IOException e) {
             System.out.println("连接建立时发送消息失败");
+        }
+
+        // 尝试在握手参数中读取 userId 和 workspaceId，如果存在则设置对应工作区为公开
+        try {
+            if (fileManagerService == null) {
+                System.out.println("FileManagerService 未注入，无法设置工作区公开");
+            } else {
+                Map<String, List<String>> params = session.getRequestParameterMap();
+                if (params != null) {
+                    List<String> users = params.get("userId");
+                    List<String> wsIds = params.get("workspaceId");
+                    if (users != null && !users.isEmpty() && wsIds != null && !wsIds.isEmpty()) {
+                        String userId = users.get(0);
+                        String wsIdStr = wsIds.get(0);
+                        try {
+                            Long wsId = Long.valueOf(wsIdStr);
+                            boolean ok = fileManagerService.setWorkspacePublic(wsId, true, userId);
+                            System.out.println("尝试将工作区设为公开 — workspaceId=" + wsId + ", userId=" + userId + ", 结果=" + ok);
+                        } catch (NumberFormatException nfe) {
+                            System.out.println("解析 workspaceId 失败: " + wsIdStr);
+                        }
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            System.out.println("设置工作区公开时发生异常: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 

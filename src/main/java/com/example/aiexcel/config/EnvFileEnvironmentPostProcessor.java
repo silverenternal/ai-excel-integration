@@ -4,8 +4,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.support.PropertiesLoaderUtils;
-
 import java.io.*;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -23,6 +21,51 @@ public class EnvFileEnvironmentPostProcessor implements EnvironmentPostProcessor
         Properties properties = loadEnvFile(envFilePath);
         if (properties != null) {
             // 将属性添加到环境中
+            // 将 .env 中的常见 Spring 配置项映射为 Spring 能识别的属性
+            String serverPort = properties.getProperty("SERVER_PORT");
+            if (serverPort != null && !serverPort.isEmpty()) {
+                properties.setProperty("server.port", serverPort);
+                // 也设置为系统属性，以防其他组件读取 System.getProperty
+                System.setProperty("server.port", serverPort);
+            }
+
+            String activeProfile = properties.getProperty("SPRING_PROFILES_ACTIVE");
+            if (activeProfile != null && !activeProfile.isEmpty()) {
+                properties.setProperty("spring.profiles.active", activeProfile);
+                System.setProperty("spring.profiles.active", activeProfile);
+            }
+
+            // 映射 QWEN_* 环境变量到应用使用的属性键
+            String qwenApiKey = properties.getProperty("QWEN_API_KEY");
+            if (qwenApiKey != null && !qwenApiKey.isEmpty()) {
+                properties.setProperty("qwen.api.api-key", qwenApiKey);
+                // 不在日志中打印敏感的 API Key
+                System.setProperty("qwen.api.api-key", qwenApiKey);
+            }
+
+            String qwenModel = properties.getProperty("QWEN_MODEL_NAME");
+            if (qwenModel != null && !qwenModel.isEmpty()) {
+                // 进一步清理：去掉行内注释并修剪
+                String sanitizedModel = qwenModel;
+                int hashIdx = sanitizedModel.indexOf('#');
+                if (hashIdx >= 0) {
+                    sanitizedModel = sanitizedModel.substring(0, hashIdx).trim();
+                }
+                int slashIdx = sanitizedModel.indexOf("//");
+                if (slashIdx >= 0) {
+                    sanitizedModel = sanitizedModel.substring(0, slashIdx).trim();
+                }
+                properties.setProperty("QWEN_MODEL_NAME", sanitizedModel);
+                properties.setProperty("qwen.api.default-model", sanitizedModel);
+                System.setProperty("qwen.api.default-model", sanitizedModel);
+            }
+
+            String qwenBase = properties.getProperty("QWEN_API_BASE_URL");
+            if (qwenBase != null && !qwenBase.isEmpty()) {
+                properties.setProperty("qwen.api.base-url", qwenBase);
+                System.setProperty("qwen.api.base-url", qwenBase);
+            }
+
             environment.getPropertySources().addFirst(new org.springframework.core.env.PropertiesPropertySource("env", properties));
 
             // 输出调试信息
@@ -62,12 +105,31 @@ public class EnvFileEnvironmentPostProcessor implements EnvironmentPostProcessor
                 Matcher matcher = pattern.matcher(line);
                 if (matcher.matches()) {
                     String key = matcher.group(1);
-                    String value = matcher.group(2);
+                    String value = matcher.group(2).trim();
 
-                    // 处理带引号的值
+                    // 如果值被双引号或单引号包裹，去除包裹引号
                     if ((value.startsWith("\"") && value.endsWith("\"")) ||
                         (value.startsWith("'") && value.endsWith("'"))) {
                         value = value.substring(1, value.length() - 1);
+                    } else {
+                        // 去除未被引号包裹情况下的行内注释（例如: value  # comment）
+                        // 注意：不要把 URL 中的 '//' 误当作注释（例如 https://...），
+                        // 因此如果值以 http:// 或 https:// 开头，我们保留原样。
+                        String lowered = value.toLowerCase();
+                        if (lowered.startsWith("http://") || lowered.startsWith("https://")) {
+                            // 保留 URL 原样（但仍去除两端空白）
+                            value = value.trim();
+                        } else {
+                            int commentIdx = value.indexOf('#');
+                            if (commentIdx >= 0) {
+                                value = value.substring(0, commentIdx).trim();
+                            }
+                            // 仅在非 URL 情况下处理双斜线注释
+                            int slashIdx = value.indexOf("//");
+                            if (slashIdx >= 0) {
+                                value = value.substring(0, slashIdx).trim();
+                            }
+                        }
                     }
 
                     properties.setProperty(key, value);

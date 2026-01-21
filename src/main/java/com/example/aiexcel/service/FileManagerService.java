@@ -188,9 +188,12 @@ public class FileManagerService {
             }
 
             FileWorkspace workspace = workspaceOpt.get();
-            // 验证用户权限（简化：只检查是否为工作区所有者）
-            if (!workspace.getUserId().equals(userId)) {
-                logger.error("User '{}' does not have permission to upload to workspace with ID {}", userId, workspaceId);
+            // 验证用户权限（简化：检查是否为工作区所有者或工作区为公开）
+            boolean isOwner = workspace.getUserId() != null && workspace.getUserId().equals(userId);
+            boolean isPublic = workspace.getIsPublic() != null && workspace.getIsPublic();
+            if (!isOwner && !isPublic) {
+                logger.error("上传被拒绝 — 用户 '{}' 无权限上传文件 '{}' 到工作区 ID:{}。工作区所有者='{}'，isPublic='{}'",
+                    userId, file.getOriginalFilename(), workspaceId, workspace.getUserId(), workspace.getIsPublic());
                 return null;
             }
 
@@ -296,6 +299,36 @@ public class FileManagerService {
         } catch (Exception e) {
             logger.error("Error counting files in workspace ID {}: {}", workspaceId, e.getMessage(), e);
             return 0;
+        }
+    }
+
+    /**
+     * 设置工作区公开状态（仅限所有者）
+     */
+    public boolean setWorkspacePublic(Long id, boolean isPublic, String userId) {
+        try {
+            Optional<FileWorkspace> workspaceOpt = workspaceRepository.findById(id);
+            if (workspaceOpt.isEmpty()) {
+                logger.error("Workspace with ID {} not found when setting public", id);
+                return false;
+            }
+
+            FileWorkspace workspace = workspaceOpt.get();
+            // 只有工作区所有者可以修改公开状态
+            if (workspace.getUserId() == null || !workspace.getUserId().equals(userId)) {
+                logger.error("用户 '{}' 无权限修改工作区 ID {} 的公开状态", userId, id);
+                return false;
+            }
+
+            workspace.setIsPublic(isPublic);
+            workspace.setUpdatedAt(LocalDateTime.now());
+            workspaceRepository.save(workspace);
+
+            logger.info("用户 '{}' 将工作区 ID {} 的 isPublic 设置为 {}", userId, id, isPublic);
+            return true;
+        } catch (Exception e) {
+            logger.error("Error setting workspace public status for ID {}: {}", id, e.getMessage(), e);
+            return false;
         }
     }
 

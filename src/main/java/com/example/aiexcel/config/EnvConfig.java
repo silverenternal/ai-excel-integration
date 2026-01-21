@@ -1,13 +1,11 @@
 package com.example.aiexcel.config;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
-import java.util.Properties;
 
 /**
  * 配置类用于加载.env文件

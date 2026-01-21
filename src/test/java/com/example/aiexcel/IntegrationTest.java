@@ -4,9 +4,7 @@ import com.example.aiexcel.service.ai.AiService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,8 +25,8 @@ public class IntegrationTest {
 
         // 尝试连接测试 - 只有当API密钥正确配置时才会返回true
         // 但如果API密钥不正确或网络问题，也可能返回false
-        boolean isConfigured = aiService.testConnection();
-        System.out.println("AI Service connection test result: " + isConfigured);
+        Integer status = aiService.testConnection();
+        System.out.println("AI Service connection test HTTP status: " + status);
 
         // 我们至少验证服务是否被注入
         System.out.println("AI Service instance: " + aiService.getClass().getSimpleName());

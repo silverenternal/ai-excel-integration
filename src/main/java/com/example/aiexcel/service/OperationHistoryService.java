@@ -7,15 +7,12 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.time.LocalDateTime;
+
 import java.util.Base64;
 import java.util.List;
 
@@ -107,7 +104,7 @@ public class OperationHistoryService {
      */
     public List<OperationHistory> getRecentOperations(String fileId, int count) {
         try {
-            Pageable pageable = PageRequest.of(0, count, Sort.by(Sort.Direction.DESC, "createdAt"));
+            //Pageable pageable = PageRequest.of(0, count, Sort.by(Sort.Direction.DESC, "createdAt"));
             // 由于Spring Data JPA不直接支持top N查询的Pageable，我们使用另一种方式
             List<OperationHistory> allHistory = operationHistoryRepository.findByFileIdOrderByCreatedAtDesc(fileId);
             if (allHistory.size() <= count) {
@@ -224,6 +221,7 @@ public class OperationHistoryService {
     /**
      * 从编码的内容创建Workbook
      */
+    @SuppressWarnings("unused")
     private Workbook createWorkbookFromContent(String encodedContent) throws IOException {
         byte[] content = decodeContent(encodedContent);
         if (content.length == 0) {

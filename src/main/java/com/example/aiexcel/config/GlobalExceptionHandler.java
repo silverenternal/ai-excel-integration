@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.io.IOException;
 
@@ -26,7 +27,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGeneralException(Exception ex) {
-        logger.error("Unhandled exception occurred: ", ex);
+        logger.error("未处理的异常 — 返回 500 给客户端。异常信息: {}", ex.getMessage(), ex);
         
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiResponseUtil.error(
@@ -99,6 +100,14 @@ public class GlobalExceptionHandler {
         
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(ApiResponseUtil.error("Requested resource not found", ex.getRequestURL()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Object> handleStaticResourceNotFound(NoResourceFoundException ex) {
+        String msg = ex.getMessage() != null ? ex.getMessage() : "Static resource not found";
+        logger.warn("静态资源未找到 — 错误: {}", msg, ex);
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiResponseUtil.error("Static resource not found", msg));
     }
 
     /**

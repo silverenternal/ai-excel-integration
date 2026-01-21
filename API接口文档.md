@@ -3,6 +3,7 @@
 ## 1. 接口规范
 
 ### 1.1 API基础信息
+
 - **协议**: HTTP
 - **域名**: `http://localhost:8080` (开发环境)
 - **认证方式**: 无需认证
@@ -12,6 +13,7 @@
 ### 1.2 数据格式规范
 
 #### 响应数据结构
+
 ```json
 {
   "success": true,
@@ -21,16 +23,19 @@
 ```
 
 #### 常用响应字段说明
+
 - `success`: Boolean - 操作是否成功
 - `data`: Object - 具体响应数据
 - `error`: String - 错误信息（失败时）
 
 ### 1.3 认证与授权
+
 当前版本的所有API均无需认证。
 
 ## 2. 文件上传接口
 
 ### 2.1 上传Excel文件
+
 - **接口**: `POST /api/upload`
 - **功能**: 上传Excel文件
 - **请求格式**: `multipart/form-data`
@@ -38,6 +43,7 @@
   - `file`: MultipartFile - Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -45,6 +51,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -52,9 +59,22 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ## 3. AI处理接口
 
 ### 3.1 与AI一起处理Excel
+
 - **接口**: `POST /api/ai/excel-with-ai`
 - **功能**: 使用AI分析自然语言命令并执行Excel操作
 - **请求格式**: `multipart/form-data`
@@ -63,6 +83,7 @@ curl -X POST \
   - `command`: String - 自然语言命令
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@sample.xlsx" \
@@ -71,6 +92,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -97,6 +119,7 @@ curl -X POST \
 ```
 
 ### 3.2 与AI一起处理Excel并下载
+
 - **接口**: `POST /api/ai/excel-with-ai-download`
 - **功能**: 使用AI处理Excel后直接返回处理后的Excel文件
 - **请求格式**: `multipart/form-data`
@@ -106,6 +129,7 @@ curl -X POST \
 - **响应格式**: Excel文件（application/vnd.openxmlformats-officedocument.spreadsheetml.sheet）
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@sample.xlsx" \
@@ -115,7 +139,30 @@ curl -X POST \
   --output modified_sample.xlsx
 ```
 
+#### 响应示例（200 OK — 文件流）
+
+```
+HTTP/1.1 200 OK
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+Content-Disposition: attachment; filename="modified_sample.xlsx"
+
+<binary file stream>
+```
+
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 3.3 生成Excel公式
+
 - **接口**: `POST /api/ai/generate-formula`
 - **功能**: 基于上下文和目标生成Excel公式
 - **请求格式**: `application/json`
@@ -124,6 +171,7 @@ curl -X POST \
   - `goal`: String - 目标描述
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -H "Content-Type: application/json" \
@@ -132,6 +180,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -141,7 +190,20 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 3.4 分析Excel数据
+
 - **接口**: `POST /api/ai/excel-analyze`
 - **功能**: 使用AI分析Excel数据
 - **请求格式**: `multipart/form-data`
@@ -150,6 +212,7 @@ curl -X POST \
   - `analysisRequest`: String - 分析请求
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -158,6 +221,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -168,7 +232,20 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 3.5 建议图表
+
 - **接口**: `POST /api/ai/suggest-charts`
 - **功能**: 基于Excel数据建议合适的图表类型
 - **请求格式**: `multipart/form-data`
@@ -176,6 +253,7 @@ curl -X POST \
   - `file`: MultipartFile - Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -183,6 +261,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -191,7 +270,20 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 3.6 AI聊天接口
+
 - **接口**: `POST /api/ai/chat`
 - **功能**: 与AI进行通用聊天对话
 - **请求格式**: `application/json`
@@ -199,6 +291,7 @@ curl -X POST \
   - `message`: String - 用户消息
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -H "Content-Type: application/json" \
@@ -207,6 +300,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -214,7 +308,20 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 3.7 AI聊天流式接口
+
 - **接口**: `POST /api/ai/chat-stream`
 - **功能**: 与AI进行流式聊天对话
 - **请求格式**: `application/json`
@@ -222,6 +329,7 @@ curl -X POST \
   - `message`: String - 用户消息
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -H "Content-Type: application/json" \
@@ -230,6 +338,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -238,6 +347,7 @@ curl -X POST \
 ```
 
 ### 3.8 AI聊天SSE接口
+
 - **接口**: `GET /api/ai/chat-sse`
 - **功能**: 通过SSE事件流方式与AI聊天
 - **请求格式**: URL参数
@@ -245,11 +355,13 @@ curl -X POST \
   - `message`: String - 用户消息
 
 #### 请求示例
+
 ```bash
 curl -N "http://localhost:8080/api/ai/chat-sse?message=你好"
 ```
 
 #### 响应示例（SSE格式）
+
 ```
 event: start
 data: 
@@ -270,9 +382,22 @@ event: done
 data: [DONE]
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ## 4. 数据分析接口
 
 ### 4.1 读取Excel数据
+
 - **接口**: `POST /api/excel/get-data`
 - **功能**: 读取Excel文件数据并返回数组格式
 - **请求格式**: `multipart/form-data`
@@ -280,6 +405,7 @@ data: [DONE]
   - `file`: MultipartFile - Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -287,6 +413,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -299,7 +426,24 @@ curl -X POST \
 }
 ```
 
+```
+
+#### 错误示例（404 Not Found）
+
+```
+
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "File not found or could not be processed"
+}
+
+```
+
 ### 4.2 创建图表
+
 - **接口**: `POST /api/excel/create-chart`
 - **功能**: 为Excel数据创建图表
 - **请求格式**: `multipart/form-data`
@@ -309,6 +453,7 @@ curl -X POST \
   - `targetColumn`: String - 目标列
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -318,6 +463,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -327,7 +473,20 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "File not found or could not be processed"
+}
+```
+
 ### 4.3 数据排序
+
 - **接口**: `POST /api/excel/sort-data`
 - **功能**: 对Excel数据进行排序
 - **请求格式**: `multipart/form-data`
@@ -337,6 +496,7 @@ curl -X POST \
   - `sortOrder`: String - 排序方向（ASC/DESC）
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -346,6 +506,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -355,7 +516,20 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "File not found or could not be processed"
+}
+```
+
 ### 4.4 数据筛选
+
 - **接口**: `POST /api/excel/filter-data`
 - **功能**: 对Excel数据进行筛选
 - **请求格式**: `multipart/form-data`
@@ -366,6 +540,7 @@ curl -X POST \
   - `filterValue`: String - 筛选值
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -376,6 +551,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -386,9 +562,22 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "File not found or could not be processed"
+}
+```
+
 ## 5. 客户分析接口
 
 ### 5.1 RFM分析
+
 - **接口**: `POST /api/analysis/rfm`
 - **功能**: 执行RFM分析（最近购买、频率、货币价值）
 - **请求格式**: `multipart/form-data`
@@ -396,6 +585,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含客户交易数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@customer_data.xlsx" \
@@ -403,6 +593,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -413,6 +604,7 @@ curl -X POST \
 ```
 
 ### 5.2 客户生命周期价值（CLV）
+
 - **接口**: `POST /api/analysis/clv`
 - **功能**: 计算客户生命周期价值
 - **请求格式**: `multipart/form-data`
@@ -420,6 +612,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含客户数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@customer_data.xlsx" \
@@ -427,6 +620,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -437,6 +631,7 @@ curl -X POST \
 ```
 
 ### 5.3 客户细分
+
 - **接口**: `POST /api/analysis/customer-segmentation`
 - **功能**: 对客户进行细分
 - **请求格式**: `multipart/form-data`
@@ -444,6 +639,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含客户数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@customer_data.xlsx" \
@@ -451,6 +647,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -461,6 +658,7 @@ curl -X POST \
 ```
 
 ### 5.4 流失预测
+
 - **接口**: `POST /api/analysis/churn-prediction`
 - **功能**: 预测客户流失风险
 - **请求格式**: `multipart/form-data`
@@ -468,6 +666,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含客户行为数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@customer_behavior.xlsx" \
@@ -475,6 +674,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -485,6 +685,7 @@ curl -X POST \
 ```
 
 ### 5.5 CAC与CLV分析
+
 - **接口**: `POST /api/analysis/cac-clv`
 - **功能**: 分析客户获取成本与客户生命周期价值关系
 - **请求格式**: `multipart/form-data`
@@ -492,6 +693,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含相关财务数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@cac_clv_data.xlsx" \
@@ -499,6 +701,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -509,6 +712,7 @@ curl -X POST \
 ```
 
 ### 5.6 群组分析
+
 - **接口**: `POST /api/analysis/cohort`
 - **功能**: 执行客户群组分析
 - **请求格式**: `multipart/form-data`
@@ -516,6 +720,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含时间序列数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@cohort_data.xlsx" \
@@ -523,6 +728,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -535,6 +741,7 @@ curl -X POST \
 ## 6. 财务分析接口
 
 ### 6.1 财务报表分析
+
 - **接口**: `POST /api/analysis/financial`
 - **功能**: 执行综合财务报表分析
 - **请求格式**: `multipart/form-data`
@@ -543,6 +750,7 @@ curl -X POST \
   - `type`: String - 分析类型（comprehensive默认）
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@financial_statements.xlsx" \
@@ -551,6 +759,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -561,6 +770,7 @@ curl -X POST \
 ```
 
 ### 6.2 财务比率计算
+
 - **接口**: `POST /api/analysis/financial-ratios`
 - **功能**: 计算各类财务比率
 - **请求格式**: `multipart/form-data`
@@ -568,6 +778,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含财务数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@financial_data.xlsx" \
@@ -575,6 +786,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -585,6 +797,7 @@ curl -X POST \
 ```
 
 ### 6.3 盈利能力分析
+
 - **接口**: `POST /api/analysis/profitability`
 - **功能**: 执行盈利能力分析
 - **请求格式**: `multipart/form-data`
@@ -592,6 +805,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含利润表等相关数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@profitability_data.xlsx" \
@@ -599,6 +813,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -609,6 +824,7 @@ curl -X POST \
 ```
 
 ### 6.4 现金流分析
+
 - **接口**: `POST /api/analysis/cash-flow`
 - **功能**: 执行现金流分析
 - **请求格式**: `multipart/form-data`
@@ -616,6 +832,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含现金流量表的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@cash_flow.xlsx" \
@@ -623,6 +840,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -633,6 +851,7 @@ curl -X POST \
 ```
 
 ### 6.5 预算与实际对比
+
 - **接口**: `POST /api/analysis/budget-actual`
 - **功能**: 对比预算与实际执行情况
 - **请求格式**: `multipart/form-data`
@@ -640,6 +859,7 @@ curl -X POST \
   - `file`: MultipartFile - 包含预算和实际执行数据的Excel文件
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@budget_actual.xlsx" \
@@ -647,6 +867,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -659,6 +880,7 @@ curl -X POST \
 ## 7. 高级AI操作接口
 
 ### 7.1 智能数据清理
+
 - **接口**: `POST /api/ai/smart-data-cleaning`
 - **功能**: 根据指令执行智能数据清理
 - **请求格式**: `multipart/form-data`
@@ -667,6 +889,7 @@ curl -X POST \
   - `instructions`: String - 清理指令
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@dirty_data.xlsx" \
@@ -675,6 +898,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -698,6 +922,7 @@ curl -X POST \
 ```
 
 ### 7.2 智能数据转换
+
 - **接口**: `POST /api/ai/smart-data-transformation`
 - **功能**: 根据指令执行智能数据转换
 - **请求格式**: `multipart/form-data`
@@ -706,6 +931,7 @@ curl -X POST \
   - `instructions`: String - 转换指令
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -714,6 +940,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -737,6 +964,7 @@ curl -X POST \
 ```
 
 ### 7.3 智能数据分析
+
 - **接口**: `POST /api/ai/smart-data-analysis`
 - **功能**: 根据指令执行智能数据分析
 - **请求格式**: `multipart/form-data`
@@ -745,6 +973,7 @@ curl -X POST \
   - `instructions`: String - 分析指令
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@sales_data.xlsx" \
@@ -753,6 +982,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -775,7 +1005,20 @@ curl -X POST \
 }
 ```
 
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
 ### 7.4 智能图表创建
+
 - **接口**: `POST /api/ai/smart-chart-creation`
 - **功能**: 根据指令创建智能图表
 - **请求格式**: `multipart/form-data`
@@ -784,6 +1027,7 @@ curl -X POST \
   - `instructions`: String - 图表创建指令
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -792,6 +1036,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -815,6 +1060,7 @@ curl -X POST \
 ```
 
 ### 7.5 智能数据验证
+
 - **接口**: `POST /api/ai/smart-data-validation`
 - **功能**: 根据指令执行智能数据验证
 - **请求格式**: `multipart/form-data`
@@ -823,6 +1069,7 @@ curl -X POST \
   - `instructions`: String - 验证指令
 
 #### 请求示例
+
 ```bash
 curl -X POST \
   -F "file=@data.xlsx" \
@@ -831,6 +1078,7 @@ curl -X POST \
 ```
 
 #### 响应示例
+
 ```json
 {
   "success": true,
@@ -856,9 +1104,11 @@ curl -X POST \
 ## 8. 系统接口
 
 ### 8.1 服务状态
+
 - **接口**: `GET /api/status`
 - **功能**: 获取API服务配置状态
 - **响应示例**:
+
 ```json
 {
   "hasApiKey": true,
@@ -867,10 +1117,59 @@ curl -X POST \
 }
 ```
 
-### 8.2 健康检查
+#### 错误示例（404 Not Found）
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+
+{
+  "success": false,
+  "error": "Requested resource not found or endpoint unavailable"
+}
+```
+
+### 8.3 分析中心系统设置
+
+- **接口**: `GET /api/analysis-center/settings`
+- **功能**: 获取前端显示的系统级设置（包含当前 API endpoint 与 server port）
+- **响应格式**: `application/json`
+- **响应示例**:
+
+```json
+{
+  "success": true,
+  "data": {
+    "apiEndpoint": "http://localhost:8081",
+    "serverPort": 8081,
+    "language": "zh-CN",
+    "theme": "dark",
+    "autoSave": true,
+    "notifications": true
+  }
+}
+```
+
+- **接口**: `POST /api/analysis-center/settings`
+- **功能**: 保存系统设置（演示：直接回显提交的配置）
+- **请求格式**: `application/json`
+- **请求示例**:
+
+```bash
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"apiEndpoint":"http://localhost:8081","autoSave":true}' \
+  http://localhost:8081/api/analysis-center/settings
+```
+
+**说明**: 在开发环境中，前端会先通过 `/api/config` 获取后端建议的 base URL，再调用该设置接口。若需要在前端临时覆盖目标 API，请在 Settings 页面修改 `API Endpoint` 并保存。
+
+### 8.4 健康检查
+
 - **接口**: `GET /api/health`
 - **功能**: 检查服务健康状态
 - **响应示例**:
+
 ```json
 {
   "status": "UP",
@@ -894,21 +1193,25 @@ curl -X POST \
 ### 9.2 常见错误类型
 
 #### 9.2.1 文件相关错误
+
 - **错误码**: 400
 - **错误信息**: "Error processing Excel file: [具体错误信息]"
 - **描述**: 文件处理失败，可能是文件格式不正确、损坏或无法读取
 
 #### 9.2.2 AI服务相关错误
+
 - **错误码**: 400
 - **错误信息**: "Error processing AI request: [具体错误信息]"
 - **描述**: AI服务调用失败，可能是API配置问题或网络连接问题
 
 #### 9.2.3 参数验证错误
+
 - **错误码**: 400
 - **错误信息**: "Message is required"
 - **描述**: 必需参数缺失或为空
 
 #### 9.2.4 内部服务器错误
+
 - **错误码**: 500
 - **错误信息**: "Error processing request: [具体错误信息]"
 - **描述**: 服务器端发生未预期的错误

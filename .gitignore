@@ -20,7 +20,8 @@ buildNumber.properties
 *.tar.gz
 *.tar.bz2
 *.tar.xz
-
+*.csv
+*.xlsx
 # IDE
 ## Eclipse
 *.pydevproject

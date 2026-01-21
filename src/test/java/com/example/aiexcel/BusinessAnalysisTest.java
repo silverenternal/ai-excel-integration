@@ -10,9 +10,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -53,6 +50,7 @@ public class BusinessAnalysisTest {
     }
 
     // 创建一个虚拟的Excel文件用于测试
+    @SuppressWarnings("unused")
     private MultipartFile createMockExcelFile() {
         // 创建一个简单的Excel内容（这里只是一个示例）
         String excelContent = "Name,Email,Amount,Date\nJohn Doe,john@example.com,100,2023-01-01\nJane Smith,jane@example.com,200,2023-01-02";

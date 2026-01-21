@@ -1,6 +1,5 @@
 package com.example.aiexcel;
 
-import com.example.aiexcel.service.ai.AiService;
 import com.example.aiexcel.service.ai.impl.QwenAiService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +13,10 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @SpringBootTest(classes = {QwenAiService.class})
 @TestPropertySource(properties = {
-    "qwen.api.api-key=sk-08ea3abd973c4add89bf79d88929067d",
-    "qwen.api.base-url=https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "qwen.api.default-model=qwen-max"
+    // 从环境变量或系统属性读取，若不存在则使用占位符
+    "qwen.api.api-key=${QWEN_API_KEY:test-api-key}",
+    "qwen.api.base-url=${QWEN_API_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}",
+    "qwen.api.default-model=${QWEN_MODEL_NAME:qwen-max}"
 })
 public class QwenAiServiceTest {
 
@@ -31,6 +31,6 @@ public class QwenAiServiceTest {
         // 验证QwenAiService已成功初始化（没有抛出异常）
         assertNotNull(qwenAiService, "QwenAiService should be initialized successfully");
         
-        System.out.println("QwenAiService initialized successfully with proper API Key handling");
+        System.out.println("QwenAiService initialized successfully (using test placeholder API key)");
     }
 }

@@ -4,9 +4,10 @@ import com.example.aiexcel.dto.AiRequest;
 import com.example.aiexcel.dto.AiResponse;
 import com.example.aiexcel.service.ai.AiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
@@ -16,7 +17,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.logging.Logger;
+import com.example.aiexcel.config.EnvFile;
 
 @Service
 public class QwenAiService implements AiService {
@@ -30,13 +34,56 @@ public class QwenAiService implements AiService {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final CloseableHttpClient httpClient = HttpClients.createDefault();
 
+    private String maskKey(String key) {
+        if (key == null) return "<null>";
+        String trimmed = key.trim();
+        if (trimmed.length() <= 10) return "***";
+        return trimmed.substring(0, Math.min(6, trimmed.length())) + "***" + trimmed.substring(Math.max(trimmed.length() - 4, 0));
+    }
+
+    private void logExceptionWithTrace(Exception e, String context) {
+        StringWriter sw = new StringWriter();
+        e.printStackTrace(new PrintWriter(sw));
+        logger.severe(context + ": " + e.getMessage() + "\n" + sw.toString());
+    }
+
     public QwenAiService(@Value("${qwen.api.api-key:}") String apiKeyFromConfig,
                          @Value("${qwen.api.base-url:https://dashscope.aliyuncs.com/compatible-mode/v1}") String baseUrl,
                          @Value("${qwen.api.default-model:qwen-max}") String model) {
-        // 仅使用从配置属性获取的API Key，系统会自动从.env文件加载
-        this.apiKey = apiKeyFromConfig;
-        this.apiBaseUrl = baseUrl;
-        this.defaultModel = model;
+        // 统一从 EnvFile 读取配置，EnvFile 会优先读取环境变量/系统属性
+        String resolvedKey = EnvFile.getApiKey();
+        if (resolvedKey != null && !resolvedKey.isEmpty()) {
+            logger.info("Qwen API key resolved from EnvFile");
+        } else if (apiKeyFromConfig != null && !apiKeyFromConfig.isEmpty()) {
+            resolvedKey = apiKeyFromConfig;
+            logger.info("Qwen API key resolved from injected configuration property");
+        }
+
+        this.apiKey = resolvedKey;
+        if (this.apiKey != null && !this.apiKey.isEmpty()) {
+            String trimmed = this.apiKey.trim();
+            if (!trimmed.startsWith("sk-")) {
+                logger.warning("Resolved API key does not start with 'sk-'. Ensure you are using a DashScope API key (sk-...).");
+            }
+        }
+
+        // base url & model 也统一通过 EnvFile 获取，保留注入值作为回退
+        String resolvedBase = EnvFile.getBaseUrl();
+        if (resolvedBase == null || resolvedBase.isEmpty()) {
+            resolvedBase = baseUrl != null ? baseUrl.trim() : null;
+        }
+
+        boolean validBase = resolvedBase != null && resolvedBase.matches("^https?://[^/\\s]+.*$");
+        if (!validBase) {
+            String received = resolvedBase == null ? "<null>" : resolvedBase;
+            logger.warning("qwen.api.base-url appears invalid: '" + received + "'. Falling back to default base URL.");
+            this.apiBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+        } else {
+            this.apiBaseUrl = resolvedBase;
+        }
+
+        logger.info("qwen.api.base-url resolved to: " + this.apiBaseUrl);
+        this.defaultModel = EnvFile.getDefaultModel();
     }
 
     @Override
@@ -63,6 +110,15 @@ public class QwenAiService implements AiService {
 
             String requestBody = objectMapper.writeValueAsString(qwenRequest);
 
+            // 日志：记录请求目标和模型（不记录完整 API Key）
+            try {
+                logger.info("Qwen request -> url=" + apiBaseUrl + "/chat/completions" + ", model=" + qwenRequest.getModel() + ", apiKeyPresent=" + (apiKey != null && !apiKey.isEmpty()));
+                logger.info("Qwen API key (masked): " + maskKey(apiKey));
+                logger.fine("Qwen request body: " + requestBody);
+            } catch (Exception ignore) {
+                // 日志尽力而为，不能让日志抛出异常影响主流程
+            }
+
             // 创建HTTP请求
             HttpPost httpPost = new HttpPost(apiBaseUrl + "/chat/completions");
             httpPost.setHeader("Authorization", "Bearer " + apiKey);
@@ -71,34 +127,56 @@ public class QwenAiService implements AiService {
             StringEntity entity = new StringEntity(requestBody, ContentType.APPLICATION_JSON);
             httpPost.setEntity(entity);
 
-            // 发送请求
-            try (CloseableHttpResponse response = httpClient.execute(httpPost)) {
-                HttpEntity responseEntity = response.getEntity();
-                String responseString;
+            // 发送请求，使用 ResponseHandler
+            String responseString = httpClient.execute(httpPost, httpResponse -> {
+                HttpEntity responseEntity = httpResponse.getEntity();
+                String body;
                 try {
-                    responseString = EntityUtils.toString(responseEntity);
+                    body = responseEntity != null ? EntityUtils.toString(responseEntity) : "";
                 } catch (org.apache.hc.core5.http.ParseException e) {
-                    logger.severe("Error parsing HTTP response: " + e.getMessage());
+                    logExceptionWithTrace(e, "Error parsing HTTP response");
                     throw new RuntimeException("Error parsing HTTP response", e);
                 }
 
-                // 检查响应状态码
-                if (response.getCode() != 200) {
-                    logger.severe("API request failed with status: " + response.getCode() + ", response: " + responseString);
-                    throw new RuntimeException("API request failed with status: " + response.getCode() + ", response: " + responseString);
+                int status = httpResponse.getCode();
+                if (status != 200) {
+                    // 更丰富的错误日志
+                    logger.severe("API request failed -> url="+ apiBaseUrl + "/chat/completions" + ", status=" + status + ", model=" + qwenRequest.getModel());
+                    logger.severe("Response body: " + body);
+                    logger.severe("API key (masked): " + maskKey(apiKey));
+
+                    // 针对 401 提供可操作提示（参考 DashScope 文档）
+                    if (status == 401) {
+                        try {
+                            if (body != null && body.contains("invalid_api_key")) {
+                                logger.warning("Invalid API key provided (invalid_api_key). Suggestions:");
+                                logger.warning(" - Ensure you're providing the correct API key (starts with 'sk-') and not a literal code snippet.");
+                                logger.warning(" - If you set the key via environment variables, prefer 'DASHSCOPE_API_KEY' or 'QWEN_API_KEY'.");
+                                logger.warning(" - Confirm the Base URL matches the key's region: use 'dashscope.aliyuncs.com' for China (Beijing) or 'dashscope-intl.aliyuncs.com' for Intl (Singapore).");
+                                logger.warning(" - If unsure, re-create or retrieve a fresh API key from DashScope console.");
+                            }
+                        } catch (Exception ignore) {
+                        }
+                    }
+
+                    throw new RuntimeException("API request failed with status: " + status + ", response: " + body);
                 }
 
-                // 解析响应
-                AiResponse aiResponse;
-                try {
-                    aiResponse = objectMapper.readValue(responseString, AiResponse.class);
-                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-                    logger.severe("Error parsing AI response: " + e.getMessage());
-                    logger.severe("Response content: " + responseString);
-                    throw new RuntimeException("Error parsing AI response", e);
-                }
-                return aiResponse;
+                return body;
+            });
+
+            // 解析响应
+            AiResponse aiResponse;
+            try {
+                aiResponse = objectMapper.readValue(responseString, AiResponse.class);
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                logger.severe("Error parsing AI response: " + e.getMessage());
+                logger.severe("Response content: " + responseString);
+                logExceptionWithTrace(e, "Error parsing AI response");
+                throw new RuntimeException("Error parsing AI response", e);
             }
+
+            return aiResponse;
         } catch (IOException e) {
             logger.severe("Error calling Qwen API: " + e.getMessage());
             throw new RuntimeException("Error calling Qwen API", e);
@@ -114,32 +192,38 @@ public class QwenAiService implements AiService {
     }
 
     @Override
-    public boolean testConnection() {
-        // 检查API密钥 - 仅使用配置属性获取的值
+    public Integer testConnection() {
+        // 如果没有配置 API Key，则不做请求，返回 null（表示未执行请求）
         if (apiKey == null || apiKey.isEmpty()) {
             logger.warning("API Key is not configured for connection test.");
-            return false;
+            return null;
         }
 
         try {
-            AiRequest testRequest = new AiRequest();
-            testRequest.setModel(defaultModel);
-            testRequest.setMessages(java.util.Arrays.asList(
-                new AiRequest.Message("user", "Hello")
-            ));
-            testRequest.setTemperature(0.1);
-            testRequest.setMaxTokens(10);
+            // 构造一个极小的请求体用于检测状态码，不走 generateResponse 以避免抛出异常
+            QwenRequest qwenRequest = new QwenRequest();
+            qwenRequest.setModel(defaultModel);
+            qwenRequest.setMessages(java.util.Arrays.asList(new AiRequest.Message("user", "Hello")));
+            qwenRequest.setTemperature(0.1);
+            qwenRequest.setMax_tokens(10);
+            qwenRequest.setStream(false);
 
-            AiResponse response = generateResponse(testRequest);
-            return response != null && response.getChoices() != null &&
-                   response.getChoices().length > 0;
+            String requestBody = objectMapper.writeValueAsString(qwenRequest);
+            HttpPost httpPost = new HttpPost(apiBaseUrl + "/chat/completions");
+            httpPost.setHeader("Authorization", "Bearer " + apiKey);
+            httpPost.setHeader("Content-Type", "application/json");
+            httpPost.setEntity(new StringEntity(requestBody, ContentType.APPLICATION_JSON));
+
+            return httpClient.execute(httpPost, httpResponse -> httpResponse.getCode());
         } catch (Exception e) {
             logger.warning("Connection test failed: " + e.getMessage());
-            return false;
+            return null;
         }
     }
 
     // 内部类用于适配Qwen API格式
+    @SuppressWarnings("unused")
+    @JsonAutoDetect(fieldVisibility = Visibility.ANY)
     private static class QwenRequest {
         private String model;
         private java.util.List<AiRequest.Message> messages;
@@ -147,20 +231,17 @@ public class QwenAiService implements AiService {
         private Integer max_tokens;
         private Boolean stream;
 
-        // Getters and Setters
         public String getModel() { return model; }
-        public void setModel(String model) { this.model = model; }
-
         public java.util.List<AiRequest.Message> getMessages() { return messages; }
-        public void setMessages(java.util.List<AiRequest.Message> messages) { this.messages = messages; }
-
         public Double getTemperature() { return temperature; }
-        public void setTemperature(Double temperature) { this.temperature = temperature; }
-
         public Integer getMax_tokens() { return max_tokens; }
-        public void setMax_tokens(Integer max_tokens) { this.max_tokens = max_tokens; }
-
         public Boolean getStream() { return stream; }
+        
+
+        public void setModel(String model) { this.model = model; }
+        public void setMessages(java.util.List<AiRequest.Message> messages) { this.messages = messages; }
+        public void setTemperature(Double temperature) { this.temperature = temperature; }
+        public void setMax_tokens(Integer max_tokens) { this.max_tokens = max_tokens; }
         public void setStream(Boolean stream) { this.stream = stream; }
     }
 }

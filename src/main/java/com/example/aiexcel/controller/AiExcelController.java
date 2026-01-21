@@ -3,6 +3,9 @@ package com.example.aiexcel.controller;
 import com.example.aiexcel.service.AiAdvancedOperationsService;
 import com.example.aiexcel.service.AiExcelIntegrationService;
 import com.example.aiexcel.service.ai.AiService;
+import com.example.aiexcel.config.EnvFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +18,8 @@ import java.util.Map;
 @RequestMapping("/api")
 public class AiExcelController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AiExcelController.class);
+
     @Autowired
     private AiExcelIntegrationService aiExcelIntegrationService;
 
@@ -26,6 +31,7 @@ public class AiExcelController {
 
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadExcel(@RequestParam("file") MultipartFile file) {
+        logger.info("/api/upload called, file={}", file == null ? "<none>" : file.getOriginalFilename());
         try {
             // 上传功能将在集成服务中实现
             Map<String, Object> response = Map.of(
@@ -46,6 +52,7 @@ public class AiExcelController {
     public ResponseEntity<Map<String, Object>> processExcelWithAI(
             @RequestParam("file") MultipartFile file,
             @RequestParam("command") String command) {
+        logger.info("/api/ai/excel-with-ai called, file={}, command={}", file == null ? "<none>" : file.getOriginalFilename(), command);
         try {
             Map<String, Object> result = aiExcelIntegrationService.processExcelWithAI(file, command);
             return ResponseEntity.ok(result);
@@ -68,6 +75,7 @@ public class AiExcelController {
     public ResponseEntity<byte[]> processExcelWithAIAndDownload(
             @RequestParam("file") MultipartFile file,
             @RequestParam("command") String command) {
+        logger.info("/api/ai/excel-with-ai-download called, file={}, command={}", file == null ? "<none>" : file.getOriginalFilename(), command);
         try {
             // 重新实现，直接在内存中处理而不保存到文件
             org.apache.poi.ss.usermodel.Workbook workbook = aiExcelIntegrationService.getExcelWorkbookWithAIChanges(file, command);
@@ -95,6 +103,7 @@ public class AiExcelController {
 
     @PostMapping("/ai/generate-formula")
     public ResponseEntity<Map<String, Object>> generateFormula(@RequestBody Map<String, String> request) {
+        logger.info("/api/ai/generate-formula called, context={}, goal={}", request == null ? "<none>" : request.get("context"), request == null ? "<none>" : request.get("goal"));
         try {
             String excelContext = request.get("context");
             String goal = request.get("goal");
@@ -114,6 +123,7 @@ public class AiExcelController {
     public ResponseEntity<Map<String, Object>> analyzeExcel(
             @RequestParam("file") MultipartFile file,
             @RequestParam("analysisRequest") String analysisRequest) {
+        logger.info("/api/ai/excel-analyze called, file={}, analysisRequest={}", file == null ? "<none>" : file.getOriginalFilename(), analysisRequest);
         try {
             Map<String, Object> result = aiExcelIntegrationService.analyzeExcelData(file, analysisRequest);
             return ResponseEntity.ok(result);
@@ -134,6 +144,7 @@ public class AiExcelController {
 
     @PostMapping("/ai/suggest-charts")
     public ResponseEntity<Map<String, Object>> suggestCharts(@RequestParam("file") MultipartFile file) {
+        logger.info("/api/ai/suggest-charts called, file={}", file == null ? "<none>" : file.getOriginalFilename());
         try {
             Map<String, Object> result = aiExcelIntegrationService.suggestChartForData(file);
             return ResponseEntity.ok(result);
@@ -154,6 +165,7 @@ public class AiExcelController {
 
     @PostMapping("/excel/get-data")
     public ResponseEntity<Map<String, Object>> getExcelData(@RequestParam("file") MultipartFile file) {
+        logger.info("/api/excel/get-data called, file={}", file == null ? "<none>" : file.getOriginalFilename());
         try {
             Object[][] excelData = aiExcelIntegrationService.getExcelDataAsArray(file);
             Map<String, Object> response = Map.of(
@@ -180,6 +192,7 @@ public class AiExcelController {
     public ResponseEntity<Map<String, Object>> createChart(@RequestParam("file") MultipartFile file,
                                                            @RequestParam("chartType") String chartType,
                                                            @RequestParam("targetColumn") String targetColumn) {
+        logger.info("/api/excel/create-chart called, file={}, chartType={}, targetColumn={}", file == null ? "<none>" : file.getOriginalFilename(), chartType, targetColumn);
         try {
             Map<String, Object> result = aiExcelIntegrationService.createChartForData(file, chartType, targetColumn);
             return ResponseEntity.ok(result);
@@ -202,6 +215,7 @@ public class AiExcelController {
     public ResponseEntity<Map<String, Object>> sortData(@RequestParam("file") MultipartFile file,
                                                         @RequestParam("sortColumn") String sortColumn,
                                                         @RequestParam("sortOrder") String sortOrder) {
+        logger.info("/api/excel/sort-data called, file={}, sortColumn={}, sortOrder={}", file == null ? "<none>" : file.getOriginalFilename(), sortColumn, sortOrder);
         try {
             Map<String, Object> result = aiExcelIntegrationService.sortExcelData(file, sortColumn, sortOrder);
             return ResponseEntity.ok(result);
@@ -225,6 +239,7 @@ public class AiExcelController {
                                                           @RequestParam("filterColumn") String filterColumn,
                                                           @RequestParam("filterCondition") String filterCondition,
                                                           @RequestParam("filterValue") String filterValue) {
+        logger.info("/api/excel/filter-data called, file={}, filterColumn={}, filterCondition={}, filterValue={}", file == null ? "<none>" : file.getOriginalFilename(), filterColumn, filterCondition, filterValue);
         try {
             Map<String, Object> result = aiExcelIntegrationService.filterExcelData(file, filterColumn, filterCondition, filterValue);
             return ResponseEntity.ok(result);
@@ -244,18 +259,48 @@ public class AiExcelController {
     }
 
     @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> getApiStatus() {
-        // 使用AI服务的连接测试方法来检测API配置状态
-        boolean apiConfigured = aiService.testConnection();
+    public ResponseEntity<Map<String, Object>> getApiStatus(@RequestParam(value = "reveal", required = false, defaultValue = "false") boolean reveal) {
+        // 使用统一的 EnvFile 工具读取运行时配置
+        String foundKey = com.example.aiexcel.config.EnvFile.getApiKey();
+        boolean hasApiKey = foundKey != null && !foundKey.isEmpty();
+        Integer connectionStatus = aiService.testConnection();
+        boolean apiConfigured = connectionStatus != null && connectionStatus == 200;
 
-        // 直接使用AI服务来检查API是否配置正确
-        boolean hasApiKey = apiConfigured; // 如果连接测试成功，说明API Key已配置
+        String resolvedBase = com.example.aiexcel.config.EnvFile.getBaseUrl();
+        boolean isDev = com.example.aiexcel.config.EnvFile.isDev();
 
-        Map<String, Object> response = Map.of(
-            "hasApiKey", hasApiKey,
-            "apiConfigured", apiConfigured,
-            "status", "available"
-        );
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("hasApiKey", hasApiKey);
+        response.put("apiConfigured", apiConfigured);
+        response.put("status", "available");
+
+        if (isDev) {
+            java.util.Map<String, Object> diag = new java.util.HashMap<>();
+            String source = hasApiKey ? "env/system/.env (via EnvFile)" : "none";
+            diag.put("keySource", source);
+            diag.put("keyMasked", EnvFile.mask(foundKey));
+            if (reveal) diag.put("keyPlain", foundKey);
+            diag.put("keyFormatOk", hasApiKey && foundKey.trim().startsWith("sk-"));
+            diag.put("baseUrlDetected", resolvedBase);
+
+            // 仅在出现 401 （未经授权）时才显示后续建议；其他情况下不显示建议
+            if (connectionStatus != null && connectionStatus == 401) {
+                java.util.List<String> suggestions = new java.util.ArrayList<>();
+                if (!hasApiKey) {
+                    suggestions.add("未检测到 API Key：请通过环境变量 DASHSCOPE_API_KEY 或 QWEN_API_KEY 设置密钥，或在 .env 中配置（仅用于本地调试）。");
+                } else {
+                    if (!foundKey.trim().startsWith("sk-")) {
+                        suggestions.add("检测到的密钥格式异常：DashScope 的 API Key 通常以 'sk-' 开头，请确认证书不是其他厂商的密钥。");
+                    }
+                    suggestions.add("出现 401，请确认所用 API Key 未被删除或过期，并从 DashScope 控制台重新生成。");
+                }
+                suggestions.add("确认 Base URL 与 API Key 所属地域匹配：\n - 中国（北京）：https://dashscope.aliyuncs.com/compatible-mode/v1\n - 国际（新加坡）：https://dashscope-intl.aliyuncs.com/compatible-mode/v1");
+                suggestions.add("不要将密钥写入生产代码或长时间放在 JVM 启动参数中（进程列表可能泄露）。");
+
+                diag.put("suggestions", suggestions);
+            }
+            response.put("diagnosis", diag);
+        }
 
         return ResponseEntity.ok(response);
     }

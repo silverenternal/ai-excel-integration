@@ -214,6 +214,42 @@ public class FileManagerController {
     }
 
     /**
+     * 设置工作区公开状态（仅工作区所有者可用）
+     */
+    @PostMapping("/workspace/{id}/set-public")
+    public ResponseEntity<Map<String, Object>> setWorkspacePublic(
+            @PathVariable Long id,
+            @RequestParam String userId,
+            @RequestParam(name = "isPublic", required = false, defaultValue = "true") boolean isPublic) {
+
+        logger.info("Received request to set workspace ID:{} public={} by user: {}", id, isPublic, userId);
+
+        try {
+            boolean success = fileManagerService.setWorkspacePublic(id, isPublic, userId);
+            if (success) {
+                Map<String, Object> response = Map.of(
+                    "success", true,
+                    "message", "Workspace public status updated"
+                );
+                return ResponseEntity.ok(response);
+            } else {
+                Map<String, Object> response = Map.of(
+                    "success", false,
+                    "error", "Workspace not found or unauthorized"
+                );
+                return ResponseEntity.status(403).body(response);
+            }
+        } catch (Exception e) {
+            logger.error("Error setting workspace public status: {}", e.getMessage(), e);
+            Map<String, Object> response = Map.of(
+                "success", false,
+                "error", "Error updating workspace public status: " + e.getMessage()
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
      * 删除工作区
      */
     @DeleteMapping("/workspace/{id}")
@@ -270,6 +306,31 @@ public class FileManagerController {
                 return ResponseEntity.badRequest().body(response);
             }
 
+            // 先检查工作区是否存在以及权限，返回更明确的状态码
+            java.util.Optional<com.example.aiexcel.model.FileWorkspace> wsOpt = fileManagerService.getWorkspaceById(workspaceId);
+            if (wsOpt.isEmpty()) {
+                Map<String, Object> response = Map.of(
+                    "success", false,
+                    "error", "Workspace not found"
+                );
+                logger.warn("上传失败（404） — 工作区 ID:{} 未找到，用户 '{}' 尝试上传文件 '{}'",
+                    workspaceId, userId, file.getOriginalFilename());
+                return ResponseEntity.status(404).body(response);
+            }
+
+            com.example.aiexcel.model.FileWorkspace ws = wsOpt.get();
+            boolean isOwner = ws.getUserId() != null && ws.getUserId().equals(userId);
+            boolean isPublic = ws.getIsPublic() != null && ws.getIsPublic();
+            if (!isOwner && !isPublic) {
+                Map<String, Object> response = Map.of(
+                    "success", false,
+                    "error", "User does not have permission to upload to this workspace"
+                );
+                logger.error("上传失败（403） — 用户 '{}' 尝试上传文件 '{}' 到工作区 ID:{}，但无权限。请确认 userId 或 将工作区设为公开。",
+                    userId, file.getOriginalFilename(), workspaceId);
+                return ResponseEntity.status(403).body(response);
+            }
+
             // 上传文件到工作区
             WorkspaceFile workspaceFile = fileManagerService.uploadFileToWorkspace(file, workspaceId, userId, description);
 
@@ -287,7 +348,7 @@ public class FileManagerController {
                     "error", "Failed to upload file"
                 );
                 logger.error("Failed to upload file '{}' to workspace ID: {}", file.getOriginalFilename(), workspaceId);
-                return ResponseEntity.badRequest().body(response);
+                return ResponseEntity.status(500).body(response);
             }
         } catch (Exception e) {
             logger.error("Error uploading file '{}' to workspace ID {}: {}", file.getOriginalFilename(), workspaceId, e.getMessage(), e);
